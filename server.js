@@ -6,32 +6,26 @@ const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: "*" } });
 
 let onlineUsers = {}; 
-let waitingUser = null;
 
 io.on('connection', (socket) => {
     socket.on('register-user', (data) => {
-        onlineUsers[socket.id] = { name: data.name, level: data.level, socketId: socket.id };
+        onlineUsers[socket.id] = { name: data.name, socketId: socket.id };
         io.emit('update-user-list', Object.values(onlineUsers));
     });
 
-    socket.on('join-stranger-queue', () => {
-        if (waitingUser && waitingUser !== socket.id) {
-            io.to(waitingUser).emit('match-found', { isInitiator: true, room: "room_" + waitingUser });
-            io.to(socket.id).emit('match-found', { isInitiator: false, room: "room_" + waitingUser });
-            waitingUser = null;
-        } else {
-            waitingUser = socket.id;
-        }
+    // Private Message logic
+    socket.on('send-private-msg', (data) => {
+        io.to(data.targetSocketId).emit('receive-msg', { senderName: onlineUsers[socket.id].name, text: data.text });
     });
 
-    socket.on('send-offer', (data) => socket.broadcast.emit('offer', data));
-    socket.on('send-answer', (data) => socket.broadcast.emit('answer', data));
-    socket.on('send-ice-candidate', (data) => socket.broadcast.emit('ice-candidate', data));
+    // Call Request with Ringtone notification
+    socket.on('call-user', (data) => {
+        io.to(data.targetSocketId).emit('incoming-call', { fromName: onlineUsers[socket.id].name, fromSocketId: socket.id });
+    });
 
     socket.on('disconnect', () => {
         delete onlineUsers[socket.id];
         io.emit('update-user-list', Object.values(onlineUsers));
-        if (waitingUser === socket.id) waitingUser = null;
     });
 });
 server.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log('Server Live'));
