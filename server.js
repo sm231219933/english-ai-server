@@ -3,8 +3,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const cors = require('cors');
 const fs = require('fs');
+const cors = require('cors');
 
 const app = express();
 app.use(express.json());
@@ -13,62 +13,54 @@ app.use(cors());
 const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: "*" } });
 
-const SECRET_KEY = "ultra_secret_key_123";
-const DB_FILE = './users_db.json';
+const DB_FILE = './app_db.json';
+let db = { users: {}, friends: {}, requests: {} }; // Simple Persistent DB
 
-// Persistent Database Logic
-let userDatabase = {};
-if (fs.existsSync(DB_FILE)) {
-    try {
-        const data = fs.readFileSync(DB_FILE, 'utf8');
-        if (data) userDatabase = JSON.parse(data);
-    } catch (err) { userDatabase = {}; }
-}
-const saveDB = () => fs.writeFileSync(DB_FILE, JSON.stringify(userDatabase));
+if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE));
+const saveDB = () => fs.writeFileSync(DB_FILE, JSON.stringify(db));
 
-// --- DIAGNOSTIC ENDPOINT ---
-app.get('/', (req, res) => res.send("<h1>Server is LIVE 🚀</h1>"));
-app.get('/status', (req, res) => res.json({ status: "alive", users: Object.keys(userDatabase).length }));
-
-// --- AUTH ENDPOINTS ---
+// Auth APIs
 app.post('/signup', async (req, res) => {
     const { email, password, name, age, gender } = req.body;
-    if (!email || !password || !name) return res.status(400).json({ msg: "Missing fields" });
-    if (userDatabase[email]) return res.status(400).json({ msg: "Email already exists!" });
-
+    if (db.users[email]) return res.status(400).json({ msg: "Exists" });
     const hashedPassword = await bcrypt.hash(password, 10);
-    userDatabase[email] = { email, password: hashedPassword, name, age, gender };
+    db.users[email] = { email, password: hashedPassword, name, age, gender, requests: [], friends: [] };
     saveDB();
-    
-    const token = jwt.sign({ email }, SECRET_KEY);
-    res.json({ token, user: { email, name, age, gender } });
+    res.json({ user: db.users[email], token: jwt.sign({ email }, "key") });
 });
 
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
-    const user = userDatabase[email];
-    if (!user) return res.status(400).json({ msg: "User not found!" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ msg: "Invalid password!" });
-
-    const token = jwt.sign({ email }, SECRET_KEY);
-    res.json({ token, user: { email, name: user.name, age: user.age, gender: user.gender } });
+    const user = db.users[email];
+    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ msg: "Fail" });
+    res.json({ user, token: jwt.sign({ email }, "key") });
 });
 
-// --- WEBRTC SIGNALING ---
-let onlineUsers = {};
+// Socket Engine
+let online = {}; // email -> socketId
 io.on('connection', (socket) => {
-    console.log("Connected:", socket.id);
-    socket.on('register-online', (data) => {
-        onlineUsers[socket.id] = { name: data.name, email: data.email };
-        io.emit('update-user-list', Object.values(onlineUsers));
+    socket.on('go-online', (email) => {
+        online[email] = socket.id;
+        io.emit('update-list', Object.values(db.users).map(u => ({ name: u.name, email: u.email, online: !!online[u.email] })));
     });
+
+    // Chat
+    socket.on('send-msg', (data) => {
+        if (online[data.toEmail]) io.to(online[data.toEmail]).emit('recv-msg', data);
+    });
+
+    // Calling
+    socket.on('call-user', (data) => {
+        if (online[data.toEmail]) io.to(online[data.toEmail]).emit('incoming-call', data);
+    });
+
+    socket.on('call-response', (data) => {
+        if (online[data.toEmail]) io.to(online[data.toEmail]).emit('call-response', data);
+    });
+
     socket.on('disconnect', () => {
-        delete onlineUsers[socket.id];
-        io.emit('update-user-list', Object.values(onlineUsers));
+        for (let email in online) if (online[email] === socket.id) delete online[email];
     });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => console.log('Auth + WebRTC Server running on ' + PORT));
+server.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log('Social Server Live'));
