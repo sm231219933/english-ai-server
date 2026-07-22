@@ -1,25 +1,23 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: "*" } });
 
-let onlineUsers = {}; // Tracks {socketId: {name, level}}
+let onlineUsers = {}; 
 let waitingUser = null;
 
 io.on('connection', (socket) => {
-    // When a user joins the app
     socket.on('register-user', (data) => {
-        onlineUsers[socket.id] = { name: data.name, level: data.level, id: socket.id };
-        io.emit('update-user-list', Object.values(onlineUsers)); // Send to everyone
+        onlineUsers[socket.id] = { name: data.name, level: data.level, socketId: socket.id };
+        io.emit('update-user-list', Object.values(onlineUsers));
     });
 
     socket.on('join-stranger-queue', () => {
         if (waitingUser && waitingUser !== socket.id) {
-            io.to(waitingUser).emit('match-found', { isInitiator: true });
-            io.to(socket.id).emit('match-found', { isInitiator: false });
+            io.to(waitingUser).emit('match-found', { isInitiator: true, room: "room_" + waitingUser });
+            io.to(socket.id).emit('match-found', { isInitiator: false, room: "room_" + waitingUser });
             waitingUser = null;
         } else {
             waitingUser = socket.id;
@@ -36,9 +34,4 @@ io.on('connection', (socket) => {
         if (waitingUser === socket.id) waitingUser = null;
     });
 });
-
-app.get('/', (req, res) => res.send('Server is Live and Tracking Users!'));
-
-server.listen(process.env.PORT || 3000, '0.0.0.0', () => {
-    console.log('Cloud Server Running...');
-});
+server.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log('Server Live'));
