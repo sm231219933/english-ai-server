@@ -22,7 +22,7 @@ if (fs.existsSync(DB_FILE)) {
 }
 const saveDB = () => fs.writeFileSync(DB_FILE, JSON.stringify(userDatabase));
 
-// --- AUTH APIs ---
+// --- HTTP APIs (Signup/Login) ---
 app.post('/signup', async (req, res) => {
     const { email, password, name, age, gender } = req.body;
     if (userDatabase[email]) return res.status(400).json({ msg: "User exists!" });
@@ -39,7 +39,7 @@ app.post('/login', async (req, res) => {
     res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name: user.name, age: user.age, gender: user.gender } });
 });
 
-// --- CALLING ENGINE ---
+// --- Real-time Engine ---
 let onlineUsers = {}; 
 let waitingUser = null;
 
@@ -72,4 +72,4 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log('Final Pro Server Live'));
+server.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log('UNIFIED SERVER LIVE'));
