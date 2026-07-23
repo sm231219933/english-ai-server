@@ -3,8 +3,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const fs = require('fs');
 const cors = require('cors');
+const fs = require('fs');
 
 const app = express();
 app.use(express.json());
@@ -13,54 +13,50 @@ app.use(cors());
 const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: "*" } });
 
-const DB_FILE = './app_db.json';
-let db = { users: {}, friends: {}, requests: {} }; // Simple Persistent DB
+const SECRET_KEY = "ultra_secret_key_123";
+const DB_FILE = './users_db.json';
 
-if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE));
-const saveDB = () => fs.writeFileSync(DB_FILE, JSON.stringify(db));
+let userDatabase = {};
+if (fs.existsSync(DB_FILE)) {
+    try { userDatabase = JSON.parse(fs.readFileSync(DB_FILE)); } catch (e) { userDatabase = {}; }
+}
+const saveDB = () => fs.writeFileSync(DB_FILE, JSON.stringify(userDatabase));
 
-// Auth APIs
+app.get('/status', (req, res) => res.json({ status: "alive" }));
+
 app.post('/signup', async (req, res) => {
     const { email, password, name, age, gender } = req.body;
-    if (db.users[email]) return res.status(400).json({ msg: "Exists" });
+    if (userDatabase[email]) return res.status(400).json({ msg: "User exists!" });
     const hashedPassword = await bcrypt.hash(password, 10);
-    db.users[email] = { email, password: hashedPassword, name, age, gender, requests: [], friends: [] };
+    userDatabase[email] = { email, password: hashedPassword, name, age, gender };
     saveDB();
-    res.json({ user: db.users[email], token: jwt.sign({ email }, "key") });
+    const token = jwt.sign({ email }, SECRET_KEY);
+    res.json({ token, user: { email, name, age, gender } });
 });
 
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
-    const user = db.users[email];
-    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ msg: "Fail" });
-    res.json({ user, token: jwt.sign({ email }, "key") });
+    const user = userDatabase[email];
+    if (!user) return res.status(400).json({ msg: "User not found!" });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ msg: "Wrong password!" });
+    const token = jwt.sign({ email }, SECRET_KEY);
+    res.json({ token, user: { email, name: user.name, age: user.age, gender: user.gender } });
 });
 
-// Socket Engine
-let online = {}; // email -> socketId
+let waitingUser = null;
 io.on('connection', (socket) => {
-    socket.on('go-online', (email) => {
-        online[email] = socket.id;
-        io.emit('update-list', Object.values(db.users).map(u => ({ name: u.name, email: u.email, online: !!online[u.email] })));
+    socket.on('join-stranger-queue', () => {
+        if (waitingUser && waitingUser.id !== socket.id) {
+            io.to(waitingUser.id).emit('match-found', { isInitiator: true });
+            io.to(socket.id).emit('match-found', { isInitiator: false });
+            waitingUser = null;
+        } else { waitingUser = socket; }
     });
-
-    // Chat
-    socket.on('send-msg', (data) => {
-        if (online[data.toEmail]) io.to(online[data.toEmail]).emit('recv-msg', data);
-    });
-
-    // Calling
-    socket.on('call-user', (data) => {
-        if (online[data.toEmail]) io.to(online[data.toEmail]).emit('incoming-call', data);
-    });
-
-    socket.on('call-response', (data) => {
-        if (online[data.toEmail]) io.to(online[data.toEmail]).emit('call-response', data);
-    });
-
-    socket.on('disconnect', () => {
-        for (let email in online) if (online[email] === socket.id) delete online[email];
-    });
+    socket.on('send-offer', (data) => socket.broadcast.emit('offer', data));
+    socket.on('send-answer', (data) => socket.broadcast.emit('answer', data));
+    socket.on('send-ice-candidate', (data) => socket.broadcast.emit('ice-candidate', data));
+    socket.on('disconnect', () => { if (waitingUser && waitingUser.id === socket.id) waitingUser = null; });
 });
 
-server.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log('Social Server Live'));
+server.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log('Server Live'));
