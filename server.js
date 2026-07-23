@@ -22,34 +22,54 @@ if (fs.existsSync(DB_FILE)) {
 }
 const saveDB = () => fs.writeFileSync(DB_FILE, JSON.stringify(userDatabase));
 
+// --- AUTH APIs ---
+app.post('/signup', async (req, res) => {
+    const { email, password, name, age, gender } = req.body;
+    if (userDatabase[email]) return res.status(400).json({ msg: "User exists!" });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    userDatabase[email] = { email, password: hashedPassword, name, age, gender };
+    saveDB();
+    res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name, age, gender } });
+});
+
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    const user = userDatabase[email];
+    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ msg: "Fail" });
+    res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name: user.name, age: user.age, gender: user.gender } });
+});
+
+// --- CALLING ENGINE ---
 let onlineUsers = {}; 
+let waitingUser = null;
 
 io.on('connection', (socket) => {
     socket.on('register-online', (data) => {
-        // SAVING GENDER FROM CLIENT
         onlineUsers[data.email] = { name: data.name, socketId: socket.id, email: data.email, gender: data.gender };
         io.emit('update-user-list', Object.values(onlineUsers));
     });
 
-    socket.on('call-user', (data) => {
-        const targetSocket = onlineUsers[data.targetEmail];
-        if (targetSocket) {
-            io.to(targetSocket.socketId).emit('incoming-call', { fromName: data.fromName, fromEmail: data.fromEmail });
-        }
+    socket.on('join-stranger-queue', () => {
+        if (waitingUser && waitingUser.id !== socket.id) {
+            io.to(waitingUser.id).emit('match-found', { isInitiator: true });
+            io.to(socket.id).emit('match-found', { isInitiator: false });
+            waitingUser = null;
+        } else { waitingUser = socket; }
     });
+
+    socket.on('call-user', (data) => {
+        const target = onlineUsers[data.targetEmail];
+        if (target) io.to(target.socketId).emit('incoming-call', { fromName: data.fromName, fromEmail: data.fromEmail });
+    });
+
+    socket.on('sdp-offer', (d) => { const t = onlineUsers[d.targetEmail]; if(t) io.to(t.socketId).emit('sdp-offer', d); });
+    socket.on('sdp-answer', (d) => { const t = onlineUsers[d.targetEmail]; if(t) io.to(t.socketId).emit('sdp-answer', d); });
+    socket.on('ice-candidate', (d) => { const t = onlineUsers[d.targetEmail]; if(t) io.to(t.socketId).emit('ice-candidate', d); });
 
     socket.on('disconnect', () => {
-        for (let email in onlineUsers) {
-            if (onlineUsers[email].socketId === socket.id) {
-                delete onlineUsers[email];
-                break;
-            }
-        }
+        for (let e in onlineUsers) if (onlineUsers[e].socketId === socket.id) delete onlineUsers[e];
         io.emit('update-user-list', Object.values(onlineUsers));
     });
-    
-    // WebRTC Signaling Logic (SDP/ICE) remains same...
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => console.log('Pro Server Live on ' + PORT));
+server.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log('Final Pro Server Live'));
