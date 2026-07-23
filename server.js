@@ -22,7 +22,7 @@ if (fs.existsSync(DB_FILE)) {
 }
 const saveDB = () => fs.writeFileSync(DB_FILE, JSON.stringify(userDatabase));
 
-// --- AUTH APIs ---
+// --- Auth APIs ---
 app.post('/signup', async (req, res) => {
     const { email, password, name, age, gender } = req.body;
     if (userDatabase[email]) return res.status(400).json({ msg: "User exists!" });
@@ -39,32 +39,38 @@ app.post('/login', async (req, res) => {
     res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name: user.name, age: user.age, gender: user.gender } });
 });
 
-// --- CALLING ENGINE (OMEGLE STYLE) ---
-let onlineUsers = new Map(); 
-let waitingQueue = [];      
+// --- CALLING ENGINE ---
+let onlineUsers = new Map(); // userId -> {socketId, name, gender}
+let waitingQueue = []; 
 
 io.on("connection", (socket) => {
+    console.log("New Socket Connected:", socket.id);
+
     socket.on("register_user", (data) => {
         socket.userId = data.userId;
-        socket.userName = data.userName;
         socket.gender = data.gender;
-        onlineUsers.set(data.userId, { socketId: socket.id, name: data.userName, gender: data.gender });
+        onlineUsers.set(data.userId, { socketId: socket.id, name: data.userName, gender: data.gender, userId: data.userId });
+        console.log(`Registered: ${data.userName} (${data.gender})`);
         broadcastOnlineUsers();
     });
 
     socket.on("find_stranger", (data) => {
         const pref = data.prefGender;
-        let partnerId = waitingQueue.find(id => {
-            let u = io.sockets.sockets.get(id);
-            return u && id !== socket.id && (pref === "Any" || u.gender === pref);
+        console.log(`Matching Request from ${socket.id} for ${pref}`);
+
+        let partnerSocketId = waitingQueue.find(id => {
+            let p = io.sockets.sockets.get(id);
+            return p && id !== socket.id && (pref === "Any" || p.gender === pref);
         });
 
-        if (partnerId) {
-            waitingQueue = waitingQueue.filter(id => id !== partnerId);
-            io.to(socket.id).emit("stranger_matched", { peerSocketId: partnerId, isInitiator: true });
-            io.to(partnerId).emit("stranger_matched", { peerSocketId: socket.id, isInitiator: false });
+        if (partnerSocketId) {
+            waitingQueue = waitingQueue.filter(id => id !== partnerSocketId);
+            console.log(`Match Found: ${socket.id} <-> ${partnerSocketId}`);
+            io.to(socket.id).emit("stranger_matched", { peerSocketId: partnerSocketId, isInitiator: true });
+            io.to(partnerSocketId).emit("stranger_matched", { peerSocketId: socket.id, isInitiator: false });
         } else {
-            waitingQueue.push(socket.id);
+            if (!waitingQueue.includes(socket.id)) waitingQueue.push(socket.id);
+            console.log(`User ${socket.id} added to queue. Queue size: ${waitingQueue.length}`);
         }
     });
 
@@ -76,12 +82,12 @@ io.on("connection", (socket) => {
         waitingQueue = waitingQueue.filter(id => id !== socket.id);
         if (socket.userId) onlineUsers.delete(socket.userId);
         broadcastOnlineUsers();
+        console.log("Disconnected:", socket.id);
     });
 
     function broadcastOnlineUsers() {
-        const list = Array.from(onlineUsers.values());
-        io.emit("online_users_list", list);
+        io.emit("online_users_list", Array.from(onlineUsers.values()));
     }
 });
 
-server.listen(3000, '0.0.0.0', () => console.log("PERFECT SERVER LIVE"));
+server.listen(3000, '0.0.0.0', () => console.log("--- FINAL SERVER LIVE ---"));
