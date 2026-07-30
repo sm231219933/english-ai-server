@@ -3,7 +3,7 @@ const http = require('http');
 const { Server } = require("socket.io");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const sqlite3 = require('sqlite3').verbose(); // Professional DB
+const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 
 const app = express();
@@ -15,92 +15,93 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 const SECRET_KEY = "ultra_secret_key_123";
 
-// --- SQLITE DATABASE SETUP ---
+// --- DATABASE SETUP ---
 const db = new sqlite3.Database('./app_database.db', (err) => {
-    if (err) console.error("Database Error:", err.message);
-    else console.log("Connected to SQLite Database ✅");
+    if (err) console.error("DB Error:", err.message);
+    else console.log("SQLite Connected ✅");
 });
 
-// Create Users Table if not exists
 db.run(`CREATE TABLE IF NOT EXISTS users (
-    email TEXT PRIMARY KEY,
-    password TEXT,
-    name TEXT,
-    age TEXT,
-    gender TEXT,
-    is_vip INTEGER DEFAULT 0
+    email TEXT PRIMARY KEY, password TEXT, name TEXT, age TEXT, gender TEXT, is_vip INTEGER DEFAULT 0
 )`);
 
-// --- AUTH APIs (SQLite Powered) ---
-
+// --- AUTH APIs (Signup/Login) ---
 app.post('/signup', async (req, res) => {
     const { email, password, name, age, gender } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-
+    const hashed = await bcrypt.hash(password, 10);
     db.run(`INSERT INTO users (email, password, name, age, gender) VALUES (?, ?, ?, ?, ?)`,
-        [email, hashedPassword, name, age, gender],
-        function(err) {
-            if (err) {
-                if (err.message.includes("UNIQUE")) return res.status(400).json({ msg: "Email already registered" });
-                return res.status(500).json({ msg: "Database Error" });
-            }
-            const token = jwt.sign({ email }, SECRET_KEY);
-            res.json({ token, user: { email, name, age, gender } });
-        }
-    );
+        [email, hashed, name, age, gender], (err) => {
+            if (err) return res.status(400).json({ msg: "Email already exists" });
+            res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name, age, gender } });
+        });
 });
 
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
-        if (err) return res.status(500).json({ msg: "Database Error" });
-        if (!user) return res.status(404).json({ msg: "Please register first" });
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(401).json({ msg: "User or password mismatch" });
-
-        const token = jwt.sign({ email }, SECRET_KEY);
-        res.json({ token, user: { email, name: user.name, age: user.age, gender: user.gender } });
+        if (!user || !(await bcrypt.compare(password, user.password))) 
+            return res.status(401).json({ msg: "Invalid credentials" });
+        res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name: user.name, gender: user.gender } });
     });
 });
 
-// --- CALLING ENGINE (OMEGLE STYLE) ---
-let onlineUsers = new Map(); 
-let waitingQueue = [];      
+// --- UNIFIED MATCHING ENGINE ---
+let queues = { audio: [], video: [], chat: [] };
+let pairs = {}; 
 
 io.on("connection", (socket) => {
+    console.log("New User:", socket.id);
+
     socket.on("register_user", (data) => {
         socket.userId = data.userId;
-        socket.gender = data.gender;
-        onlineUsers.set(data.userId, { socketId: socket.id, name: data.userName, gender: data.gender, userId: data.userId });
-        io.emit("online_users_list", Array.from(onlineUsers.values()));
+        socket.gender = data.gender || "Male";
     });
 
-    socket.on("find_stranger", (data) => {
-        const pref = data.prefGender;
-        let partnerId = waitingQueue.find(id => {
+    socket.on("find_buddy", (data) => {
+        const mode = data.mode; // 'audio', 'video', or 'chat'
+        const pref = data.prefGender || "Any";
+        
+        // Remove from other queues first
+        Object.keys(queues).forEach(m => queues[m] = queues[m].filter(id => id !== socket.id));
+
+        let partnerIndex = queues[mode].findIndex(id => {
             let u = io.sockets.sockets.get(id);
             return u && id !== socket.id && (pref === "Any" || u.gender === pref);
         });
 
-        if (partnerId) {
-            waitingQueue = waitingQueue.filter(id => id !== partnerId);
-            io.to(socket.id).emit("stranger_matched", { peerSocketId: partnerId, isInitiator: true });
-            io.to(partnerId).emit("stranger_matched", { peerSocketId: socket.id, isInitiator: false });
+        if (partnerIndex !== -1) {
+            let partnerId = queues[mode].splice(partnerIndex, 1)[0];
+            pairs[socket.id] = partnerId;
+            pairs[partnerId] = socket.id;
+
+            io.to(socket.id).emit("matched", { partnerId: partnerId, initiator: true });
+            io.to(partnerId).emit("matched", { partnerId: socket.id, initiator: false });
+            console.log(`Matched [${mode}]: ${socket.id} <-> ${partnerId}`);
         } else {
-            if (!waitingQueue.includes(socket.id)) waitingQueue.push(socket.id);
+            if (!queues[mode].includes(socket.id)) queues[mode].push(socket.id);
+            socket.emit("waiting");
         }
     });
 
     socket.on("webrtc_signal", (data) => {
-        io.to(data.targetSocketId).emit("webrtc_signal", { senderSocketId: socket.id, signalData: data.signalData });
+        const partnerId = pairs[socket.id];
+        if (partnerId) io.to(partnerId).emit("webrtc_signal", { signalData: data.signalData });
+    });
+
+    socket.on("send_chat", (data) => {
+        const partnerId = pairs[socket.id];
+        if (partnerId) io.to(partnerId).emit("receive_chat", { message: data.message });
     });
 
     socket.on("disconnect", () => {
-        waitingQueue = waitingQueue.filter(id => id !== socket.id);
-        if (socket.userId) onlineUsers.delete(socket.userId);
-        io.emit("online_users_list", Array.from(onlineUsers.values()));
+        Object.keys(queues).forEach(m => queues[m] = queues[m].filter(id => id !== socket.id));
+        let pId = pairs[socket.id];
+        if (pId) {
+            io.to(pId).emit("buddy_left");
+            delete pairs[pId];
+        }
+        delete pairs[socket.id];
     });
 });
 
-server.listen(3000, '0.0.0.0', () => console.log("Enterprise SQLite Server Ready"));
+server.listen(3000, '0.0.0.0', () => console.log("Master Server Ready on 3000"));
