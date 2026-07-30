@@ -50,7 +50,7 @@ let queues = { audio: [], video: [], chat: [] };
 let pairs = {}; 
 
 io.on("connection", (socket) => {
-    console.log("New User:", socket.id);
+    console.log("New User Connected:", socket.id);
 
     socket.on("register_user", (data) => {
         socket.userId = data.userId;
@@ -91,6 +91,14 @@ io.on("connection", (socket) => {
     socket.on("send_chat", (data) => {
         const partnerId = pairs[socket.id];
         if (partnerId) io.to(partnerId).emit("receive_chat", { message: data.message });
+    });
+
+    // --- REMOTE ERROR LOGGING (THE FIX) ---
+    socket.on("app_error_log", (data) => {
+        console.log("\n!!! FATAL ERROR FROM APP !!!");
+        console.log(`User/Socket ID: ${socket.id}`);
+        console.log("Error Detail:", data.error);
+        console.log("-----------------------------\n");
     });
 
     socket.on("disconnect", () => {
