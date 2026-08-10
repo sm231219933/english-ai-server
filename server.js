@@ -25,6 +25,41 @@ db.run(`CREATE TABLE IF NOT EXISTS users (
     email TEXT PRIMARY KEY, password TEXT, name TEXT, age TEXT, gender TEXT, is_vip INTEGER DEFAULT 0
 )`);
 
+// --- REAL-TIME PRESENCE DATA ---
+// Isme hum track karenge ki kaunsa user kis mode par active hai
+let onlineRegistry = {
+    text: {},
+    audio: {},
+    video: {}
+};
+
+// --- ONLINE COUNTS API (For Home and Selection Page) ---
+app.get('/online-counts', (req, res) => {
+    const { mode, hwId } = req.query;
+    const now = Date.now();
+
+    // 1. Agar user Matching page par hai, toh uska timestamp update karo (Heartbeat)
+    if (mode && hwId && onlineRegistry[mode]) {
+        onlineRegistry[mode][hwId] = now;
+    }
+
+    // 2. Har mode ke liye purane users (jo 10 sec se inactive hain) unhe hatao aur fresh count nikalo
+    const counts = {};
+    ["text", "audio", "video"].forEach(m => {
+        const activeUsers = Object.keys(onlineRegistry[m]).filter(id => {
+            if (now - onlineRegistry[m][id] > 10000) { // 10 second timeout
+                delete onlineRegistry[m][id];
+                return false;
+            }
+            return true;
+        });
+        counts[m] = activeUsers.length;
+    });
+
+    // Jis mode ka pucha gaya hai uska count bhej do
+    res.json({ count: counts[mode] || 0, all: counts });
+});
+
 // --- AUTH APIs (Signup/Login) ---
 app.post('/signup', async (req, res) => {
     const { email, password, name, age, gender } = req.body;
@@ -61,7 +96,6 @@ io.on("connection", (socket) => {
         const mode = data.mode; // 'audio', 'video', or 'chat'
         const pref = data.prefGender || "Any";
         
-        // Remove from other queues first
         Object.keys(queues).forEach(m => queues[m] = queues[m].filter(id => id !== socket.id));
 
         let partnerIndex = queues[mode].findIndex(id => {
@@ -93,7 +127,6 @@ io.on("connection", (socket) => {
         if (partnerId) io.to(partnerId).emit("receive_chat", { message: data.message });
     });
 
-    // --- REMOTE ERROR LOGGING (THE FIX) ---
     socket.on("app_error_log", (data) => {
         console.log("\n!!! FATAL ERROR FROM APP !!!");
         console.log(`User/Socket ID: ${socket.id}`);
