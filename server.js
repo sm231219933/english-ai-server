@@ -133,7 +133,27 @@ io.on("connection", (socket) => {
         console.log("Error Detail:", data.error);
         console.log("-----------------------------\n");
     });
+    // --- REAL-TIME PAGE PRESENCE ---
+    socket.on('join_page', (pageName) => {
+        socket.join(pageName);
+        const count = io.sockets.adapter.rooms.get(pageName)?.size || 0;
+        io.to(pageName).emit('page_user_count', count);
+    });
 
+    socket.on('leave_page', (pageName) => {
+        socket.leave(pageName);
+        const count = io.sockets.adapter.rooms.get(pageName)?.size || 0;
+        io.to(pageName).emit('page_user_count', count);
+    });
+
+    socket.on('disconnecting', () => {
+        socket.rooms.forEach(room => {
+            if (room.endsWith('_page')) {
+                const count = (io.sockets.adapter.rooms.get(room)?.size || 1) - 1;
+                io.to(room).emit('page_user_count', count);
+            }
+        });
+    });
     socket.on("disconnect", () => {
         Object.keys(queues).forEach(m => queues[m] = queues[m].filter(id => id !== socket.id));
         let pId = pairs[socket.id];
