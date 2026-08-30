@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
+const AWS = require('aws-sdk'); // Naya import
 
 const app = express();
 app.use(express.json());
@@ -15,7 +16,12 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 const SECRET_KEY = "ultra_secret_key_123";
 
-// --- DATABASE SETUP ---
+// --- AWS DYNAMODB SETUP ---
+AWS.config.update({ region: 'us-east-1' }); // Mumbai hai toh 'ap-south-1' karein
+const dynamoDB = new AWS.DynamoDB.DocumentClient();
+const TABLE_NAME = 'tinklusers';
+
+// --- DATABASE SETUP (SQLite) ---
 const db = new sqlite3.Database('./app_database.db', (err) => {
     if (err) console.error("DB Error:", err.message);
     else console.log("SQLite Connected ✅");
@@ -26,91 +32,131 @@ db.run(`CREATE TABLE IF NOT EXISTS users (
 )`);
 
 // --- REAL-TIME PRESENCE DATA ---
-// Isme hum track karenge ki kaunsa user kis mode par active hai
-let onlineRegistry = {
-    text: {},
-    audio: {},
-    video: {}
-};
+let onlineRegistry = { text: {}, audio: {}, video: {} };
 
-// --- ONLINE COUNTS API (For Home and Selection Page) ---
+// --- ONLINE COUNTS API ---
 app.get('/online-counts', (req, res) => {
     const { mode, hwId } = req.query;
     const now = Date.now();
-
-    // 1. Agar user Matching page par hai, toh uska timestamp update karo (Heartbeat)
-    if (mode && hwId && onlineRegistry[mode]) {
-        onlineRegistry[mode][hwId] = now;
-    }
-
-    // 2. Har mode ke liye purane users (jo 10 sec se inactive hain) unhe hatao aur fresh count nikalo
+    if (mode && hwId && onlineRegistry[mode]) { onlineRegistry[mode][hwId] = now; }
     const counts = {};
     ["text", "audio", "video"].forEach(m => {
         const activeUsers = Object.keys(onlineRegistry[m]).filter(id => {
-            if (now - onlineRegistry[m][id] > 10000) { // 10 second timeout
-                delete onlineRegistry[m][id];
-                return false;
-            }
+            if (now - onlineRegistry[m][id] > 10000) { delete onlineRegistry[m][id]; return false; }
             return true;
         });
         counts[m] = activeUsers.length;
     });
-
-    // Jis mode ka pucha gaya hai uska count bhej do
     res.json({ count: counts[mode] || 0, all: counts });
 });
 
-// --- AUTH APIs (Signup/Login) ---
+// --- NEW: CHECK USER (For Professional Auto-Fill) ---
+app.get('/check-user', async (req, res) => {
+    const { email } = req.query;
+    console.log("--> Checking AWS for user:", email);
+    
+    const params = { TableName: TABLE_NAME, Key: { "email": email } };
+    try {
+        const data = await dynamoDB.get(params).promise();
+        if (data.Item) {
+            console.log("SUCCESS: User found in AWS");
+            res.json({ 
+                exists: true, 
+                user: { name: data.Item.name, age: data.Item.age, gender: data.Item.gender } 
+            });
+        } else {
+            res.json({ exists: false });
+        }
+    } catch (err) {
+        console.error("AWS Error:", err.message);
+        res.status(500).json({ msg: "Server Error" });
+    }
+});
+
+// --- AUTH APIs (Updated with AWS Sync) ---
 app.post('/signup', async (req, res) => {
     const { email, password, name, age, gender } = req.body;
+    console.log("--> New Signup Request for:", email);
+
     const hashed = await bcrypt.hash(password, 10);
+
+    // 1. Save to SQLite (Local Backup)
     db.run(`INSERT INTO users (email, password, name, age, gender) VALUES (?, ?, ?, ?, ?)`,
-        [email, hashed, name, age, gender], (err) => {
-            if (err) return res.status(400).json({ msg: "Email already exists" });
-            res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name, age, gender } });
+        [email, hashed, name, age, gender], async (err) => {
+            if (err) {
+                console.log("SQLite Error (User might exist)");
+            }
         });
+
+    // 2. Save to AWS DynamoDB (Source of Truth)
+    const params = {
+        TableName: TABLE_NAME,
+        Item: { email, password: hashed, name, age, gender, isPaid: false, createdAt: new Date().toISOString() }
+    };
+
+    try {
+        await dynamoDB.put(params).promise();
+        console.log("SUCCESS: Saved to AWS DynamoDB");
+        res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name, age, gender } });
+    } catch (err) {
+        console.error("AWS Save Fail:", err.message);
+        res.status(500).json({ msg: "AWS Sync Failed" });
+    }
 });
 
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
-    db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
-        if (!user || !(await bcrypt.compare(password, user.password))) 
-            return res.status(401).json({ msg: "Invalid credentials" });
-        res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name: user.name, gender: user.gender } });
-    });
+    console.log("--> Login attempt:", email);
+
+    // Try AWS First for Professional Sync
+    const params = { TableName: TABLE_NAME, Key: { "email": email } };
+    try {
+        const data = await dynamoDB.get(params).promise();
+        if (data.Item && (await bcrypt.compare(password, data.Item.password))) {
+            console.log("SUCCESS: Login via AWS");
+            return res.json({ 
+                token: jwt.sign({ email }, SECRET_KEY), 
+                user: { email, name: data.Item.name, age: data.Item.age, gender: data.Item.gender } 
+            });
+        }
+        
+        // Fallback to SQLite
+        db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
+            if (user && (await bcrypt.compare(password, user.password))) {
+                console.log("SUCCESS: Login via SQLite");
+                res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name: user.name, gender: user.gender } });
+            } else {
+                res.status(401).json({ msg: "Invalid credentials" });
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ msg: "Login error" });
+    }
 });
 
-// --- UNIFIED MATCHING ENGINE ---
+// --- UNIFIED MATCHING ENGINE (Socket.IO) ---
 let queues = { audio: [], video: [], chat: [] };
 let pairs = {}; 
 
 io.on("connection", (socket) => {
-    console.log("New User Connected:", socket.id);
-
     socket.on("register_user", (data) => {
         socket.userId = data.userId;
         socket.gender = data.gender || "Male";
     });
 
     socket.on("find_buddy", (data) => {
-        const mode = data.mode; // 'audio', 'video', or 'chat'
+        const mode = data.mode;
         const pref = data.prefGender || "Any";
-        
         Object.keys(queues).forEach(m => queues[m] = queues[m].filter(id => id !== socket.id));
-
         let partnerIndex = queues[mode].findIndex(id => {
             let u = io.sockets.sockets.get(id);
             return u && id !== socket.id && (pref === "Any" || u.gender === pref);
         });
-
         if (partnerIndex !== -1) {
             let partnerId = queues[mode].splice(partnerIndex, 1)[0];
-            pairs[socket.id] = partnerId;
-            pairs[partnerId] = socket.id;
-
+            pairs[socket.id] = partnerId; pairs[partnerId] = socket.id;
             io.to(socket.id).emit("matched", { partnerId: partnerId, initiator: true });
             io.to(partnerId).emit("matched", { partnerId: socket.id, initiator: false });
-            console.log(`Matched [${mode}]: ${socket.id} <-> ${partnerId}`);
         } else {
             if (!queues[mode].includes(socket.id)) queues[mode].push(socket.id);
             socket.emit("waiting");
@@ -127,13 +173,6 @@ io.on("connection", (socket) => {
         if (partnerId) io.to(partnerId).emit("receive_chat", { message: data.message });
     });
 
-    socket.on("app_error_log", (data) => {
-        console.log("\n!!! FATAL ERROR FROM APP !!!");
-        console.log(`User/Socket ID: ${socket.id}`);
-        console.log("Error Detail:", data.error);
-        console.log("-----------------------------\n");
-    });
-    // --- REAL-TIME PAGE PRESENCE ---
     socket.on('join_page', (pageName) => {
         socket.join(pageName);
         const count = io.sockets.adapter.rooms.get(pageName)?.size || 0;
@@ -146,21 +185,10 @@ io.on("connection", (socket) => {
         io.to(pageName).emit('page_user_count', count);
     });
 
-    socket.on('disconnecting', () => {
-        socket.rooms.forEach(room => {
-            if (room.endsWith('_page')) {
-                const count = (io.sockets.adapter.rooms.get(room)?.size || 1) - 1;
-                io.to(room).emit('page_user_count', count);
-            }
-        });
-    });
     socket.on("disconnect", () => {
         Object.keys(queues).forEach(m => queues[m] = queues[m].filter(id => id !== socket.id));
         let pId = pairs[socket.id];
-        if (pId) {
-            io.to(pId).emit("buddy_left");
-            delete pairs[pId];
-        }
+        if (pId) { io.to(pId).emit("buddy_left"); delete pairs[pId]; }
         delete pairs[socket.id];
     });
 });
