@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
-const AWS = require('aws-sdk'); // Naya import
+const AWS = require('aws-sdk');
 
 const app = express();
 app.use(express.json());
@@ -16,8 +16,9 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 const SECRET_KEY = "ultra_secret_key_123";
 
-// --- AWS DYNAMODB SETUP ---
-AWS.config.update({ region: 'us-east-1' }); // Mumbai hai toh 'ap-south-1' karein
+// --- AWS DYNAMODB SETUP (SECURE BRIDGE) ---
+// NO KEYS HERE! The IAM Role attached to EC2 handles permissions.
+AWS.config.update({ region: 'ap-south-1' }); // Mumbai Region
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
 const TABLE_NAME = 'tinklusers';
 
@@ -41,25 +42,22 @@ app.get('/online-counts', (req, res) => {
     if (mode && hwId && onlineRegistry[mode]) { onlineRegistry[mode][hwId] = now; }
     const counts = {};
     ["text", "audio", "video"].forEach(m => {
-        const activeUsers = Object.keys(onlineRegistry[m]).filter(id => {
-            if (now - onlineRegistry[m][id] > 10000) { delete onlineRegistry[m][id]; return false; }
-            return true;
-        });
+        const activeUsers = Object.keys(onlineRegistry[m]).filter(id => (now - onlineRegistry[m][id] < 10000));
         counts[m] = activeUsers.length;
     });
     res.json({ count: counts[mode] || 0, all: counts });
 });
 
-// --- NEW: CHECK USER (For Professional Auto-Fill) ---
+// --- AUTO-FETCH: CHECK USER IN AWS ---
 app.get('/check-user', async (req, res) => {
     const { email } = req.query;
-    console.log("--> Checking AWS for user:", email);
+    console.log("--> Checking AWS Cloud for user:", email);
     
     const params = { TableName: TABLE_NAME, Key: { "email": email } };
     try {
         const data = await dynamoDB.get(params).promise();
         if (data.Item) {
-            console.log("SUCCESS: User found in AWS");
+            console.log("SUCCESS: User found in DynamoDB");
             res.json({ 
                 exists: true, 
                 user: { name: data.Item.name, age: data.Item.age, gender: data.Item.gender } 
@@ -68,86 +66,66 @@ app.get('/check-user', async (req, res) => {
             res.json({ exists: false });
         }
     } catch (err) {
-        console.error("AWS Error:", err.message);
+        console.error("AWS ACCESS ERROR (Check IAM Role):", err.message);
         res.status(500).json({ msg: "Server Error" });
     }
 });
 
-// --- AUTH APIs (Updated with AWS Sync) ---
+// --- SIGNUP API (AWS Sync) ---
 app.post('/signup', async (req, res) => {
     const { email, password, name, age, gender } = req.body;
-    console.log("--> New Signup Request for:", email);
-
+    console.log("--> Signup Request for:", email);
     const hashed = await bcrypt.hash(password, 10);
 
-    // 1. Save to SQLite (Local Backup)
+    // 1. Local SQLite Backup
     db.run(`INSERT INTO users (email, password, name, age, gender) VALUES (?, ?, ?, ?, ?)`,
-        [email, hashed, name, age, gender], async (err) => {
-            if (err) {
-                console.log("SQLite Error (User might exist)");
-            }
-        });
+        [email, hashed, name, age, gender], (err) => { if (err) console.log("SQLite backup skipped (user exists)"); });
 
-    // 2. Save to AWS DynamoDB (Source of Truth)
+    // 2. AWS DynamoDB Sync
     const params = {
         TableName: TABLE_NAME,
         Item: { email, password: hashed, name, age, gender, isPaid: false, createdAt: new Date().toISOString() }
     };
-
     try {
         await dynamoDB.put(params).promise();
         console.log("SUCCESS: Saved to AWS DynamoDB");
         res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name, age, gender } });
     } catch (err) {
-        console.error("AWS Save Fail:", err.message);
+        console.error("AWS SAVE ERROR (Check IAM Role):", err.message);
         res.status(500).json({ msg: "AWS Sync Failed" });
     }
 });
 
+// --- LOGIN API ---
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     console.log("--> Login attempt:", email);
 
-    // Try AWS First for Professional Sync
     const params = { TableName: TABLE_NAME, Key: { "email": email } };
     try {
         const data = await dynamoDB.get(params).promise();
         if (data.Item && (await bcrypt.compare(password, data.Item.password))) {
-            console.log("SUCCESS: Login via AWS");
+            console.log("SUCCESS: AWS Verified Login");
             return res.json({ 
                 token: jwt.sign({ email }, SECRET_KEY), 
                 user: { email, name: data.Item.name, age: data.Item.age, gender: data.Item.gender } 
             });
         }
-        
-        // Fallback to SQLite
-        db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
-            if (user && (await bcrypt.compare(password, user.password))) {
-                console.log("SUCCESS: Login via SQLite");
-                res.json({ token: jwt.sign({ email }, SECRET_KEY), user: { email, name: user.name, gender: user.gender } });
-            } else {
-                res.status(401).json({ msg: "Invalid credentials" });
-            }
-        });
+        res.status(401).json({ msg: "Invalid credentials" });
     } catch (err) {
         res.status(500).json({ msg: "Login error" });
     }
 });
 
-// --- UNIFIED MATCHING ENGINE (Socket.IO) ---
+// --- SOCKET.IO Logic (Matchmaking) ---
 let queues = { audio: [], video: [], chat: [] };
 let pairs = {}; 
 
 io.on("connection", (socket) => {
-    socket.on("register_user", (data) => {
-        socket.userId = data.userId;
-        socket.gender = data.gender || "Male";
-    });
-
+    socket.on("register_user", (data) => { socket.userId = data.userId; socket.gender = data.gender || "Male"; });
     socket.on("find_buddy", (data) => {
         const mode = data.mode;
         const pref = data.prefGender || "Any";
-        Object.keys(queues).forEach(m => queues[m] = queues[m].filter(id => id !== socket.id));
         let partnerIndex = queues[mode].findIndex(id => {
             let u = io.sockets.sockets.get(id);
             return u && id !== socket.id && (pref === "Any" || u.gender === pref);
@@ -157,34 +135,26 @@ io.on("connection", (socket) => {
             pairs[socket.id] = partnerId; pairs[partnerId] = socket.id;
             io.to(socket.id).emit("matched", { partnerId: partnerId, initiator: true });
             io.to(partnerId).emit("matched", { partnerId: socket.id, initiator: false });
-        } else {
-            if (!queues[mode].includes(socket.id)) queues[mode].push(socket.id);
-            socket.emit("waiting");
-        }
+        } else { if (!queues[mode].includes(socket.id)) queues[mode].push(socket.id); }
     });
-
     socket.on("webrtc_signal", (data) => {
         const partnerId = pairs[socket.id];
         if (partnerId) io.to(partnerId).emit("webrtc_signal", { signalData: data.signalData });
     });
-
     socket.on("send_chat", (data) => {
         const partnerId = pairs[socket.id];
         if (partnerId) io.to(partnerId).emit("receive_chat", { message: data.message });
     });
-
     socket.on('join_page', (pageName) => {
         socket.join(pageName);
         const count = io.sockets.adapter.rooms.get(pageName)?.size || 0;
         io.to(pageName).emit('page_user_count', count);
     });
-
     socket.on('leave_page', (pageName) => {
         socket.leave(pageName);
         const count = io.sockets.adapter.rooms.get(pageName)?.size || 0;
         io.to(pageName).emit('page_user_count', count);
     });
-
     socket.on("disconnect", () => {
         Object.keys(queues).forEach(m => queues[m] = queues[m].filter(id => id !== socket.id));
         let pId = pairs[socket.id];
@@ -193,4 +163,4 @@ io.on("connection", (socket) => {
     });
 });
 
-server.listen(3000, '0.0.0.0', () => console.log("Master Server Ready on 3000"));
+server.listen(3000, '0.0.0.0', () => console.log("Secure Master Server Ready on port 3000"));
