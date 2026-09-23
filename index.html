@@ -19,7 +19,7 @@
 </section>
 <section class="card grammar-tool"><div class="label">GRAMMAR SPEAKING TOOL</div><h2>Speak a sentence. Find your mistake.</h2><p>Do not type anything. Tap the microphone, say one sentence, and get the correction with a simple explanation.</p><div class="controls"><button class="primary" id="grammarSpeak">🎤 Speak a sentence</button><button class="secondary" id="grammarListen" disabled>🔊 Hear correction</button></div><div id="grammarStatus" class="status">Ready. Speak naturally.</div>
 <div id="grammarLive" class="heard hidden"><b>Live speech:</b> <span id="grammarLiveText"></span></div>
-<div class="controls"><button class="primary" id="grammarSend" disabled>➤ Check sentence</button></div>
+<div class="controls"><button class="primary" id="grammarSend" disabled>➤ Check sentence</button><button class="secondary" id="grammarRespeak">🔄 Respeak</button></div>
 <div id="grammarHeard" class="heard hidden"></div><div id="grammarResult" class="feedback hidden"></div></section><section class="card"><div class="label">FREE SPEAKING</div><h2>60-second challenge</h2><p>Speak about the topic without stopping. Your browser turns speech into text and the practice engine checks common mistakes.</p><div class="topic">Tell me about your daily routine.</div><div class="controls"><button class="primary" id="freeSpeak">🎤 Start 60-second challenge</button></div><div class="timer" id="freeTimer">60</div><div class="transcript" id="freeText"></div><div id="freeFeedback" class="feedback hidden"></div></section>
 </main><script type="module">
 import { binaryInlined } from "https://unpkg.com/harper.js@2.4.0/dist/binaryInlined.js";
@@ -28,5 +28,5 @@ const harper = new WorkerLinter({ binary: binaryInlined, dialect: Dialect.Americ
 window.harperLinter = harper;
 window.harperReady = harper.lint("Harper grammar test.");
 </script>
-<script src="app.js?v=20260923-7"></script>
+<script src="app.js?v=20260923-8"></script>
 </body></html>
