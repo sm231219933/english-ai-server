@@ -1,0 +1,58 @@
+name: Build local grammar engine
+
+on:
+  push:
+    paths-ignore:
+      - "vendor/lingotweaker/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout website
+        uses: actions/checkout@v4
+
+      - name: Checkout LingoTweaker
+        uses: actions/checkout@v4
+        with:
+          repository: fiduswriter/LingoTweaker
+          path: .lingotweaker
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack@v0.4.0
+        with:
+          version: latest
+
+      - name: Build English WebAssembly engine and data pack
+        working-directory: .lingotweaker
+        run: |
+          cargo build --release -p lt-data --bin pack_data
+          mkdir -p ../vendor/lingotweaker/packs
+          target/release/pack_data data en ../vendor/lingotweaker/packs/en.pack
+          wasm-pack build crates/lt-wasm --target web --out-dir ../../vendor/lingotweaker/pkg
+
+      - name: Remove generated metadata we do not need
+        run: |
+          rm -f vendor/lingotweaker/pkg/.gitignore
+          rm -f vendor/lingotweaker/pkg/package.json
+
+      - name: Commit generated browser engine
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor/lingotweaker
+          if git diff --cached --quiet; then
+            echo "No grammar engine changes."
+          else
+            git commit -m "Build local LanguageTool-compatible WASM grammar engine"
+            git push
+          fi
