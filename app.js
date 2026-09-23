@@ -253,8 +253,10 @@ function commonGrammar(text){
   });
 
   // 25. Capitalize the first character of the sentence as a presentation correction.
-  if(text && /^[a-z]/.test(text))
-    add(text,text.charAt(0).toUpperCase()+text.slice(1),"Start a sentence with a capital letter.",20);
+  // Speech normalization lowercases text, so do not flag sentence-initial "I"
+  // or generate capitalization findings from the normalized copy.
+  // Harper receives the original spoken text separately and can handle real
+  // capitalization issues without this local rule creating false positives.
 
   // Keep the most useful corrections first and remove exact duplicates.
   const seen=new Set();
@@ -479,6 +481,8 @@ function harperResult(text,lints){
 async function showGrammarToolResult(raw){
   const result=grammarCheckSentence(raw);
   const heard=$("grammarHeard"),box=$("grammarResult");
+  // Never treat the spoken first-person pronoun I as a grammar error merely
+  // because normalizeSpeechText() lowercased it internally.
   heard.className="heard";
   heard.innerHTML="<b>You said:</b> "+raw;
   if(!result.text || result.text.split(/\s+/).filter(Boolean).length<2){
