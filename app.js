@@ -4,7 +4,7 @@ let scenario="restaurant",index=0,correct=0,attempted=0,recognition=null,freeRec
 const $=id=>document.getElementById(id);
 const current=()=>lessons[scenario][index][0];
 function normalizeSpeechText(s){
-  let t=s.toLowerCase().replace(/[^a-z0-9\\s']/g," ").replace(/\\s+/g," ").trim();
+  let t=s.toLowerCase().replace(/[^a-z0-9\s']/g," ").replace(/\s+/g," ").trim();
   // Speech recognition sometimes spells common words letter-by-letter: "w e r e".
   const spelled={
     "w e r e":"were","w a s":"was","a m":"am","i s":"is","a r e":"are",
@@ -13,7 +13,7 @@ function normalizeSpeechText(s){
     "t h e":"the","a n":"an","a":"a","t o":"to"
   };
   Object.keys(spelled).sort((a,b)=>b.length-a.length).forEach(k=>{
-    t=t.replace(new RegExp("\\\\b"+k.replace(/ /g,"\\\\s+")+"\\\\b","gi"),spelled[k]);
+    t=t.replace(new RegExp("\\b"+k.replace(/ /g,"\\s+")+"\\b","gi"),spelled[k]);
   });
   return t.replace(/\\s+/g," ").trim();
 }
@@ -34,7 +34,6 @@ function commonGrammar(text){
     [/\b(i)\s+is\b/i,"I is","I am"],
     [/\b(i)\s+are\b/i,"I are","I am"],
     [/\b(i)\s+has\b/i,"I has","I have"],
-    [/\b(i)\s+was\b/i,"I was","I was"],
     [/\b(he|she|it)\s+go\b/i,"go","goes"],
     [/\b(he|she|it)\s+have\b/i,"have","has"],
     [/\b(he|she|it)\s+do\b/i,"do","does"],
@@ -48,7 +47,6 @@ function commonGrammar(text){
     [/\b(yesterday|last night|last week|last month)\s+[^.]*\b(go|eat|buy|see|come)\b/i,"past-tense verb","use the past tense"],
     [/\b(can|should|must)\s+to\s+/i,"to + verb","can/should/must + verb"],
     [/\b(want|need|like)\s+go\b/i,"want/need/like go","want/need/like to go"],
-    [/\b(a|an)\s+[aeiou][a-z]*\b/i,"article","check a/an"],
     [/\b(people|children|men|women)\s+is\b/i,"is","are"],
     [/\b(my father|my mother|my brother|my sister|the man|the woman|the boy|the girl)\s+was\b/i,"was","was"],
     [/\b(my father|my mother|my brother|my sister|the man|the woman|the boy|the girl)\s+have\b/i,"have","has"],
