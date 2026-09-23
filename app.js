@@ -57,11 +57,11 @@ function commonGrammar(text){
 
   // 1. Subject + be agreement.
   const beRules=[
-    [/\\b(i)\\s+(is|are|was|were)\\b/gi,"I am","Use am with I."],
-    [/\\b(you|we|they)\\s+(is|was)\\b/gi,null,"Use are/were with you, we and they."],
-    [/\\b(you|we|they)\\s+(has)\\b/gi,null,"Use have with you, we and they."],
-    [/\\b(he|she|it)\\s+(are|were)\\b/gi,null,"Use is/was with he, she and it."],
-    [/\\b(he|she|it)\\s+(have)\\b/gi,null,"Use has with he, she and it."]
+    [/\b(i)\s+(is|are|was|were)\b/gi,"I am","Use am with I."],
+    [/\b(you|we|they)\s+(is|was)\b/gi,null,"Use are/were with you, we and they."],
+    [/\b(you|we|they)\s+(has)\b/gi,null,"Use have with you, we and they."],
+    [/\b(he|she|it)\s+(are|were)\b/gi,null,"Use is/was with he, she and it."],
+    [/\b(he|she|it)\s+(have)\b/gi,null,"Use has with he, she and it."]
   ];
   beRules.forEach(([re,forced,reason])=>{
     let m;
@@ -74,7 +74,7 @@ function commonGrammar(text){
   });
 
   // 2. Missing be before adjective, location, nationality or possessive phrase.
-  first(/\\b(i|you|he|she|it|we|they)\\s+(my|your|his|her|our|their)\\s+[a-z]+\\b/i,m=>{
+  first(/\b(i|you|he|she|it|we|they)\s+(my|your|his|her|our|their)\s+[a-z]+\b/i,m=>{
     const s=m[1].toLowerCase(),be=s==="i"?"am":/^(you|we|they)$/.test(s)?"are":"is";
     add(m[0],s+" "+be+" "+m[2]+" "+m[3],"A subject pronoun needs a form of be before this complement.",100);
   });
@@ -89,7 +89,7 @@ function commonGrammar(text){
   }
 
   // 3. Modals + base verb.
-  const modal=/\\b(can|could|may|might|must|shall|should|will|would)\\s+(to\\s+)?([a-z]+)\\b/gi;
+  const modal=/\b(can|could|may|might|must|shall|should|will|would)\s+(to\s+)?([a-z]+)\b/gi;
   while((m=modal.exec(text))){
     const modalWord=m[1],verb=m[3].toLowerCase();
     if(m[2]) add(m[0],modalWord+" "+baseForm(verb),"A modal is followed directly by the base verb, without to.",100);
@@ -99,7 +99,7 @@ function commonGrammar(text){
   }
 
   // 4. Do/does/did + base verb.
-  const aux=/\\b(do|does|did)\\s+([a-z]+)\\b/gi;
+  const aux=/\b(do|does|did)\s+([a-z]+)\b/gi;
   while((m=aux.exec(text))){
     const v=m[2].toLowerCase();
     if(!/^(not|so|that|this)$/.test(v) && v!==baseForm(v))
@@ -116,7 +116,7 @@ function commonGrammar(text){
 
   // 6. Perfect tenses: have/has/had + past participle.
   const irregular={went:"gone",ate:"eaten",saw:"seen",did:"done",made:"made",took:"taken",gave:"given",came:"come",ran:"run",spoke:"spoken",wrote:"written",broke:"broken",chose:"chosen",knew:"known",began:"begun",drank:"drunk",drove:"driven",forgot:"forgotten",found:"found",got:"gotten",kept:"kept",left:"left",read:"read",said:"said",sent:"sent",sang:"sung",slept:"slept",swam:"swum",thought:"thought",told:"told",understood:"understood",wore:"worn"};
-  const perfect=/\\b(has|have|had)\\s+([a-z]+)\\b/gi;
+  const perfect=/\b(has|have|had)\s+([a-z]+)\b/gi;
   while((m=perfect.exec(text))){
     const v=m[2].toLowerCase();
     if(irregular[v]) add(m[0],m[1]+" "+irregular[v],"After have/has/had, use the past participle.",95);
@@ -125,7 +125,7 @@ function commonGrammar(text){
   }
 
   // 7. Continuous tenses: be + -ing.
-  const continuous=/\\b(am|is|are|was|were)\\s+([a-z]+)\\b/gi;
+  const continuous=/\b(am|is|are|was|were)\s+([a-z]+)\b/gi;
   while((m=continuous.exec(text))){
     const v=m[2].toLowerCase();
     const auxiliaries=["am","is","are","was","were","been"];
@@ -134,7 +134,7 @@ function commonGrammar(text){
   }
 
   // 8. Infinitives after common verbs.
-  const infinitive=/\\b(want|need|plan|hope|try|decide|learn|promise|agree|refuse|expect|offer|choose|would like)\\s+([a-z]+)\\b/gi;
+  const infinitive=/\b(want|need|plan|hope|try|decide|learn|promise|agree|refuse|expect|offer|choose|would like)\s+([a-z]+)\b/gi;
   while((m=infinitive.exec(text))){
     const v=m[2].toLowerCase();
     if(!/^(to|is|are|was|were|am|have|has|had|not)$/.test(v))
@@ -142,7 +142,7 @@ function commonGrammar(text){
   }
 
   // 9. Gerund after common prepositions.
-  const prepIng=/\\b(after|before|without|by|instead of)\\s+([a-z]+)\\b/gi;
+  const prepIng=/\b(after|before|without|by|instead of)\s+([a-z]+)\b/gi;
   while((m=prepIng.exec(text))){
     const v=m[2].toLowerCase();
     if(/^(go|come|eat|drink|work|study|learn|talk|speak|drive|walk|run|wait|sleep|watch|read|write)$/.test(v))
@@ -151,7 +151,7 @@ function commonGrammar(text){
 
   // 10. Articles: a/an and common vowel-sound exceptions.
   const articleWords={apple:"an",orange:"an",hour:"an",honest:"an",heir:"an",honor:"an",university:"a",uniform:"a",unicorn:"a",useful:"a",user:"a",European:"a",one:"a"};
-  const article=/\\b(a|an)\\s+([a-z]+)\\b/gi;
+  const article=/\b(a|an)\s+([a-z]+)\b/gi;
   while((m=article.exec(text))){
     const noun=m[2].toLowerCase(),wanted=articleWords[noun]||null;
     if(wanted && m[1].toLowerCase()!==wanted)
@@ -169,35 +169,35 @@ function commonGrammar(text){
   }
 
   // 12. Demonstratives + noun number.
-  first(/\\b(this|that)\\s+(people|students|friends|cars|books|things)\\b/i,m=>add(m[0],(m[1].toLowerCase()==="this"?"these ":"those ")+m[2],"Use these/those with plural nouns.",70));
-  first(/\\b(these|those)\\s+(person|student|friend|car|book|thing)\\b/i,m=>add(m[0],(m[1].toLowerCase()==="these"?"this ":"that ")+m[2],"Use this/that with a singular noun.",70));
+  first(/\b(this|that)\s+(people|students|friends|cars|books|things)\b/i,m=>add(m[0],(m[1].toLowerCase()==="this"?"these ":"those ")+m[2],"Use these/those with plural nouns.",70));
+  first(/\b(these|those)\s+(person|student|friend|car|book|thing)\b/i,m=>add(m[0],(m[1].toLowerCase()==="these"?"this ":"that ")+m[2],"Use this/that with a singular noun.",70));
 
   // 13. There is/are and there was/were.
-  first(/\\bthere\\s+(is|was)\\s+(people|children|men|women|students|friends|cars|books|things)\\b/i,m=>{
+  first(/\bthere\s+(is|was)\s+(people|children|men|women|students|friends|cars|books|things)\b/i,m=>{
     const v=m[1].toLowerCase()==="is"?"are":"were";
     add(m[0],"there "+v+" "+m[2],"The verb agrees with the plural noun after there.",90);
   });
 
   // 14. Negative agreement.
-  first(/\\b(he|she|it)\\s+(don't|do not)\\b/i,m=>add(m[0],m[1]+" doesn't","Use doesn't with he, she and it.",90));
-  first(/\\b(i|you|we|they)\\s+(doesn't)\\b/i,m=>add(m[0],m[1]+" don't","Use don't with I, you, we and they.",90));
+  first(/\b(he|she|it)\s+(don't|do not)\b/i,m=>add(m[0],m[1]+" doesn't","Use doesn't with he, she and it.",90));
+  first(/\b(i|you|we|they)\s+(doesn't)\b/i,m=>add(m[0],m[1]+" don't","Use don't with I, you, we and they.",90));
 
   // 15. Pronoun case after a verb/preposition.
-  const objectCase=/\\b(call|help|see|meet|invite|tell|ask|give|send|show)\\s+(i|he|she|we|they)\\b/gi;
+  const objectCase=/\b(call|help|see|meet|invite|tell|ask|give|send|show)\s+(i|he|she|we|they)\b/gi;
   const obj={i:"me",he:"him",she:"her",we:"us",they:"them"};
   while((m=objectCase.exec(text))) add(m[0],m[1]+" "+obj[m[2].toLowerCase()],"Use an object pronoun after this verb.",55);
-  const prepCase=/\\b(with|for|to|from|between|about|beside|without)\\s+(i|he|she|we|they)\\b/gi;
+  const prepCase=/\b(with|for|to|from|between|about|beside|without)\s+(i|he|she|we|they)\b/gi;
   while((m=prepCase.exec(text))) add(m[0],m[1]+" "+obj[m[2].toLowerCase()],"Use an object pronoun after a preposition.",55);
 
   // 16. Possessive pronoun/article confusion.
   const possessive={my:"mine",your:"yours",his:"his",her:"hers",our:"ours",their:"theirs"};
-  const poss=/\\b(my|your|his|her|our|their)\\s+(is|are|was|were)\\b/gi;
+  const poss=/\b(my|your|his|her|our|their)\s+(is|are|was|were)\b/gi;
   while((m=poss.exec(text))) add(m[0],possessive[m[1].toLowerCase()]+" "+m[2],"Use a possessive pronoun when the noun is omitted.",50);
 
   // 17. Comparatives and superlatives.
-  first(/\\bmore\\s+(better|worse|faster|slower|bigger|smaller|stronger|weaker|higher|lower|easier|harder|older|younger|closer|farther)\\b/i,m=>add(m[0],m[1],"Do not combine more with an adjective that already has a comparative form.",80));
-  first(/\\bmost\\s+(best|worst|fastest|slowest|biggest|smallest|strongest|weakest|highest|lowest|easiest|hardest|oldest|youngest)\\b/i,m=>add(m[0],m[1],"Do not combine most with an adjective that already has a superlative form.",80));
-  first(/\\b(as)\\s+(better|worse|bigger|smaller|faster|slower)\\s+as\\b/i,m=>add(m[0],"as "+m[2].replace(/er$/,"")+" as","Use the base adjective in as...as comparisons.",55));
+  first(/\bmore\s+(better|worse|faster|slower|bigger|smaller|stronger|weaker|higher|lower|easier|harder|older|younger|closer|farther)\b/i,m=>add(m[0],m[1],"Do not combine more with an adjective that already has a comparative form.",80));
+  first(/\bmost\s+(best|worst|fastest|slowest|biggest|smallest|strongest|weakest|highest|lowest|easiest|hardest|oldest|youngest)\b/i,m=>add(m[0],m[1],"Do not combine most with an adjective that already has a superlative form.",80));
+  first(/\b(as)\s+(better|worse|bigger|smaller|faster|slower)\s+as\b/i,m=>add(m[0],"as "+m[2].replace(/er$/,"")+" as","Use the base adjective in as...as comparisons.",55));
 
   // 18. Common preposition errors.
   const prepMap={
@@ -213,18 +213,18 @@ function commonGrammar(text){
   });
 
   // 19. Common verb-pattern errors.
-  first(/\\b(enjoy|avoid|finish|keep|mind)\\s+(to)\\s+([a-z]+)\\b/i,m=>add(m[0],m[1]+" "+m[3]+"ing","These verbs are followed by a gerund, not to + verb.",70));
-  first(/\\b(let|make)\\s+(me|him|her|us|them)\\s+to\\s+([a-z]+)\\b/i,m=>add(m[0],m[1]+" "+m[2]+" "+m[3],"Let/make + object is followed by the base verb.",70));
+  first(/\b(enjoy|avoid|finish|keep|mind)\s+(to)\s+([a-z]+)\b/i,m=>add(m[0],m[1]+" "+m[3]+"ing","These verbs are followed by a gerund, not to + verb.",70));
+  first(/\b(let|make)\s+(me|him|her|us|them)\s+to\s+([a-z]+)\b/i,m=>add(m[0],m[1]+" "+m[2]+" "+m[3],"Let/make + object is followed by the base verb.",70));
 
   // 20. Common conjunction/connector errors.
-  first(/\\b(because|although|even though)\\s+but\\b/i,m=>add(m[0],m[1],"Do not normally use because/although together with but for the same contrast/cause.",60));
-  first(/\\b(despite|in spite of)\\s+(he|she|they|we|i)\\b/i,m=>add(m[0],m[1]+" "+({he:"his",she:"her",they:"their",we:"our",i:"my"}[m[2].toLowerCase()]||"the")+" presence","Despite/in spite of is followed by a noun phrase or gerund.",45));
+  first(/\b(because|although|even though)\s+but\b/i,m=>add(m[0],m[1],"Do not normally use because/although together with but for the same contrast/cause.",60));
+  first(/\b(despite|in spite of)\s+(he|she|they|we|i)\b/i,m=>add(m[0],m[1]+" "+({he:"his",she:"her",they:"their",we:"our",i:"my"}[m[2].toLowerCase()]||"the")+" presence","Despite/in spite of is followed by a noun phrase or gerund.",45));
 
   // 21. Common double negatives in standard English.
-  first(/\\b(don't|doesn't|didn't|can't|couldn't|won't|wouldn't|never)\\s+([a-z]+)\\s+no\\b/i,m=>add(m[0],m[0].replace(/\\s+no\\b/i,""),"Avoid two negative markers when standard English needs one.",40));
+  first(/\b(don't|doesn't|didn't|can't|couldn't|won't|wouldn't|never)\s+([a-z]+)\s+no\b/i,m=>add(m[0],m[0].replace(/\s+no\b/i,""),"Avoid two negative markers when standard English needs one.",40));
 
   // 22. Question word order.
-  const question=/^(where|when|why|how|what|who)\\s+(you|he|she|they|we|i)\\s+([a-z]+)\\??$/i;
+  const question=/^(where|when|why|how|what|who)\s+(you|he|she|they|we|i)\s+([a-z]+)\??$/i;
   first(question,m=>{
     const s=m[2].toLowerCase();
     const aux=/^(i|you|we|they)$/.test(s)?"do":"does";
@@ -247,7 +247,7 @@ function commonGrammar(text){
   }
 
   // 24. Common adjective/adverb confusion.
-  first(/\\b(run|drive|speak|work|sing|dance)\\s+(good|bad|slow|quick|easy)\\b/i,m=>{
+  first(/\b(run|drive|speak|work|sing|dance)\s+(good|bad|slow|quick|easy)\b/i,m=>{
     const adverb={good:"well",bad:"badly",slow:"slowly",quick:"quickly",easy:"easily"}[m[2].toLowerCase()];
     add(m[0],m[1]+" "+adverb,"Use an adverb to describe how an action is performed.",40);
   });
