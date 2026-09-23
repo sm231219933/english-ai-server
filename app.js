@@ -5,18 +5,120 @@ const $=id=>document.getElementById(id);
 const current=()=>lessons[scenario][index][0];
 const normalize=s=>s.toLowerCase().replace(/[^a-z0-9\s']/g,"").replace(/\s+/g," ").trim();
 const words=s=>normalize(s).split(" ").filter(Boolean);
-function similarity(a,b){const A=words(a),B=words(b),used=new Set();if(!A.length)return 0;let hits=0;A.forEach(w=>{const i=B.findIndex((x,j)=>x===w&&!used.has(j));if(i>=0){hits++;used.add(i)}});return hits/Math.max(A.length,B.length)}
-function commonGrammar(text){const rules=[[/\b(he|she|it)\s+go\b/i,"go","goes"],[/\b(he|she|it)\s+have\b/i,"have","has"],[/\b(i|you|we|they)\s+is\b/i,"is","are"],[/\bi\s+are\b/i,"are","am"],[/\b(i|you|we|they)\s+was\b/i,"was","were"],[/\b(he|she|it)\s+don't\b/i,"don't","doesn't"],[/\byesterday\s+[^.]*\bgo\b/i,"go","went"],[/\byesterday\s+[^.]*\bbuy\b/i,"buy","bought"]];return rules.filter(r=>r[0].test(text)).map(r=>({bad:r[1],good:r[2]}))}
-function render(){$("promptText").textContent=current();$("hint").textContent=lessons[scenario][index][1];$("score").textContent=correct+"/"+attempted;$("bar").style.width=(index/lessons[scenario].length*100)+"%";$("feedback").className="feedback hidden";$("heard").className="heard hidden";$("status").textContent="Ready."}
-function speakText(text){if(!("speechSynthesis"in window))return $("status").textContent="Text-to-speech is not supported.";speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="en-US";u.rate=.9;speechSynthesis.speak(u)}
+
+function similarity(a,b){
+  const A=words(a),B=words(b),used=new Set();
+  if(!A.length)return 0;
+  let hits=0;
+  A.forEach(w=>{const i=B.findIndex((x,j)=>x===w&&!used.has(j));if(i>=0){hits++;used.add(i)}});
+  return hits/Math.max(A.length,B.length);
+}
+
+function commonGrammar(text){
+  const rules=[
+    [/\b(i)\s+is\b/i,"I is","I am"],
+    [/\b(i)\s+are\b/i,"I are","I am"],
+    [/\b(i)\s+has\b/i,"I has","I have"],
+    [/\b(i)\s+was\b/i,"I was","I was"],
+    [/\b(he|she|it)\s+go\b/i,"go","goes"],
+    [/\b(he|she|it)\s+have\b/i,"have","has"],
+    [/\b(he|she|it)\s+do\b/i,"do","does"],
+    [/\b(he|she|it)\s+don't\b/i,"don't","doesn't"],
+    [/\b(i|you|we|they)\s+is\b/i,"is","are"],
+    [/\b(i|you|we|they)\s+was\b/i,"was","were"],
+    [/\b(i|you|we|they)\s+has\b/i,"has","have"],
+    [/\b(he|she|it)\s+were\b/i,"were","was"],
+    [/\b(he|she|it)\s+are\b/i,"are","is"],
+    [/\b(he|she|it)\s+don't\b/i,"don't","doesn't"],
+    [/\b(yesterday|last night|last week|last month)\s+[^.]*\b(go|eat|buy|see|come)\b/i,"past-tense verb","use the past tense"],
+    [/\b(can|should|must)\s+to\s+/i,"to + verb","can/should/must + verb"],
+    [/\b(want|need|like)\s+go\b/i,"want/need/like go","want/need/like to go"],
+    [/\b(a|an)\s+[aeiou][a-z]*\b/i,"article","check a/an"],
+    [/\b(people|children|men|women)\s+is\b/i,"is","are"],
+    [/\b(there)\s+is\s+[^.]*\b(people|things|cars|books)\b/i,"there is","there are"]
+  ];
+  return rules.filter(r=>r[0].test(text)).map(r=>({bad:r[1],good:r[2]}));
+}
+
+function grammarHTML(fixes){
+  if(fixes.length)return "<div class='grammar-title'>📝 Grammar suggestion</div>"+fixes.map(x=>"❌ <strong>"+x.bad+"</strong> → <strong>"+x.good+"</strong>").join("<br>");
+  return "<div class='grammar-title'>📝 Grammar check</div>✅ No common grammar mistake detected. Your sentence looks okay.";
+}
+
+function render(){
+  $("promptText").textContent=current();
+  $("hint").textContent=lessons[scenario][index][1];
+  $("score").textContent=correct+"/"+attempted;
+  $("bar").style.width=(index/lessons[scenario].length*100)+"%";
+  $("feedback").className="feedback hidden";
+  $("heard").className="heard hidden";
+  $("status").textContent="Ready.";
+}
+
+function speakText(text){
+  if(!("speechSynthesis"in window))return $("status").textContent="Text-to-speech is not supported.";
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);u.lang="en-US";u.rate=.9;speechSynthesis.speak(u);
+}
+
 $("scenario").onchange=e=>{scenario=e.target.value;index=0;correct=0;attempted=0;render()};
 $("listen").onclick=()=>speakText(current());
-function startRecognition(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return $("status").textContent="Speech recognition is not supported. Try Chrome or Edge.";if(recognition)recognition.stop();recognition=new SR();recognition.lang="en-US";recognition.interimResults=false;recognition.maxAlternatives=1;recognition.onstart=()=>{$("status").textContent="🎤 Listening... speak now."};recognition.onerror=e=>$("status").textContent="Could not hear you ("+e.error+"). Try again.";recognition.onresult=e=>evaluate(e.results[0][0].transcript);recognition.start()}
+
+function startRecognition(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return $("status").textContent="Speech recognition is not supported. Try Chrome or Edge.";
+  if(recognition)recognition.stop();
+  recognition=new SR();
+  recognition.lang="en-US";
+  recognition.interimResults=false;
+  recognition.maxAlternatives=1;
+  recognition.onstart=()=>{$("status").textContent="🎤 Listening... speak now."};
+  recognition.onerror=e=>{$("status").textContent="Could not hear you ("+e.error+"). Try again."};
+  recognition.onresult=e=>evaluate(e.results[0][0].transcript);
+  recognition.start();
+}
 $("speak").onclick=startRecognition;
-function evaluate(text){attempted++;const score=similarity(current(),text),fixes=commonGrammar(text);$("heard").className="heard";$("heard").innerHTML="<b>You said:</b> "+text;const fb=$("feedback");fb.className="feedback "+(score>=.82?"good":"bad");if(score>=.82){correct++;fb.innerHTML="✅ <b>Good!</b> Your sentence matches well."+((fixes.length)?"<br>Review: "+fixes.map(x=>"<strong>"+x.bad+" → "+x.good+"</strong>").join(", "):"");$("status").textContent="Nice! Try again or continue."}else{fb.innerHTML="Keep going. <b>Better sentence:</b> <strong>"+current()+"</strong>"+(fixes.length?"<br>Grammar: "+fixes.map(x=>"<strong>"+x.bad+" → "+x.good+"</strong>").join(", "):"");$("status").textContent="Let's try again."}$("score").textContent=correct+"/"+attempted}
+
+function evaluate(text){
+  attempted++;
+  const score=similarity(current(),text),fixes=commonGrammar(text);
+  $("heard").className="heard";
+  $("heard").innerHTML="<b>You said:</b> "+text;
+  const fb=$("feedback");
+  fb.className="feedback "+(score>=.82?"good":"bad");
+  if(score>=.82){
+    correct++;
+    fb.innerHTML="✅ <b>Good!</b> Your sentence matches well.<br><br>"+grammarHTML(fixes);
+    $("status").textContent="Nice! Grammar feedback is shown below.";
+  }else{
+    fb.innerHTML="Keep going. <b>Better sentence:</b> <strong>"+current()+"</strong><br><br>"+grammarHTML(fixes);
+    $("status").textContent="Your grammar feedback is shown below.";
+  }
+  $("score").textContent=correct+"/"+attempted;
+}
+
 $("retry").onclick=()=>{speakText(current());setTimeout(startRecognition,700)};
 $("next").onclick=()=>{index=(index+1)%lessons[scenario].length;render()};
-function freeStart(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$("freeFeedback").className="feedback bad";$("freeFeedback").textContent="Speech recognition is not supported in this browser.";return}freeRunning=true;freeSeconds=60;$("freeTimer").textContent=60;$("freeText").textContent="";$("freeFeedback").className="feedback hidden";freeRecognition=new SR();freeRecognition.lang="en-US";freeRecognition.continuous=true;freeRecognition.interimResults=true;freeRecognition.onresult=e=>{let out="";for(let i=0;i<e.results.length;i++)out+=e.results[i][0].transcript+" ";$("freeText").textContent=out.trim()};freeRecognition.onend=()=>{if(freeRunning)try{freeRecognition.start()}catch(e){}};freeRecognition.start();timer=setInterval(()=>{freeSeconds--;$("freeTimer").textContent=freeSeconds;if(freeSeconds<=0)freeStop()},1000);$("freeSpeak").textContent="⏹ Stop challenge"}
-function freeStop(){if(!freeRunning)return;freeRunning=false;clearInterval(timer);try{freeRecognition.stop()}catch(e){}$("freeSpeak").textContent="🎤 Start 60-second challenge";const text=$("freeText").textContent,fixes=commonGrammar(text),fb=$("freeFeedback");fb.className="feedback "+(fixes.length?"bad":"good");fb.innerHTML=fixes.length?"<b>Practice these:</b><br>"+fixes.map(x=>"❌ "+x.bad+" → <strong>"+x.good+"</strong>").join("<br>")+"<br><br>Now say your idea again.":"✅ No common grammar errors were detected. Keep speaking and add more detail."}
+
+function freeStart(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){$("freeFeedback").className="feedback bad";$("freeFeedback").textContent="Speech recognition is not supported in this browser.";return}
+  freeRunning=true;freeSeconds=60;$("freeTimer").textContent=60;$("freeText").textContent="";$("freeFeedback").className="feedback hidden";
+  freeRecognition=new SR();freeRecognition.lang="en-US";freeRecognition.continuous=true;freeRecognition.interimResults=true;
+  freeRecognition.onresult=e=>{let out="";for(let i=0;i<e.results.length;i++)out+=e.results[i][0].transcript+" ";$("freeText").textContent=out.trim()};
+  freeRecognition.onend=()=>{if(freeRunning)try{freeRecognition.start()}catch(e){}};
+  freeRecognition.start();
+  timer=setInterval(()=>{freeSeconds--;$("freeTimer").textContent=freeSeconds;if(freeSeconds<=0)freeStop()},1000);
+  $("freeSpeak").textContent="⏹ Stop challenge";
+}
+
+function freeStop(){
+  if(!freeRunning)return;
+  freeRunning=false;clearInterval(timer);try{freeRecognition.stop()}catch(e){}
+  $("freeSpeak").textContent="🎤 Start 60-second challenge";
+  const text=$("freeText").textContent,fixes=commonGrammar(text),fb=$("freeFeedback");
+  fb.className="feedback "+(fixes.length?"bad":"good");
+  fb.innerHTML=fixes.length?"<b>Practice these grammar corrections:</b><br>"+fixes.map(x=>"❌ "+x.bad+" → <strong>"+x.good+"</strong>").join("<br>")+"<br><br>Now say your idea again.":grammarHTML(fixes)+"<br><br>Keep speaking and add more detail.";
+}
 $("freeSpeak").onclick=()=>freeRunning?freeStop():freeStart();
 render();
