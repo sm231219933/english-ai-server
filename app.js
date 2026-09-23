@@ -356,7 +356,15 @@ $("freeSpeak").onclick=()=>freeRunning?freeStop():freeStart();
 
 // Standalone spoken grammar checker.
 function grammarCheckSentence(raw){
-  const text=normalizeSpeechText(raw);
+  // Speech recognition can occasionally hand us text with unusual Unicode
+  // spacing/characters. Keep a safe fallback so a valid spoken sentence is
+  // never reported as "Please say a complete sentence".
+  const source=String(raw||"").trim();
+  let text=normalizeSpeechText(source);
+  const sourceWords=source.split(/\\s+/).filter(Boolean);
+  if(text.split(/\\s+/).filter(Boolean).length<2 && sourceWords.length>=2){
+    text=source.toLowerCase().replace(/[^a-z0-9\\s']/g," ").replace(/\\s+/g," ").trim();
+  }
   const fixes=commonGrammar(text);
   let corrected=text;
   fixes.forEach(x=>{
