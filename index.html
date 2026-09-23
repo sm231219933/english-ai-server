@@ -22,11 +22,32 @@
 <div class="controls"><button class="primary" id="grammarSend" disabled>➤ Check sentence</button><button class="secondary" id="grammarRespeak">🔄 Respeak</button></div>
 <div id="grammarHeard" class="heard hidden"></div><div id="grammarResult" class="feedback hidden"></div></section><section class="card"><div class="label">FREE SPEAKING</div><h2>60-second challenge</h2><p>Speak about the topic without stopping. Your browser turns speech into text and the practice engine checks common mistakes.</p><div class="topic">Tell me about your daily routine.</div><div class="controls"><button class="primary" id="freeSpeak">🎤 Start 60-second challenge</button></div><div class="timer" id="freeTimer">60</div><div class="transcript" id="freeText"></div><div id="freeFeedback" class="feedback hidden"></div></section>
 </main><script type="module">
+/* Primary grammar engine: LingoTweaker, a LanguageTool-derived Rust/WASM port.
+   The engine and English data are generated into the repository by GitHub Actions,
+   so no grammar text is sent to a server. Harper remains a fallback. */
+(async()=>{
+  try{
+    const { default: init, LtEngine } = await import("./vendor/lingotweaker/pkg/lt_wasm.js");
+    await init();
+    const pack=await fetch("./vendor/lingotweaker/packs/en.pack").then(r=>{
+      if(!r.ok) throw new Error("English grammar data pack not found");
+      return r.arrayBuffer();
+    });
+    const today=new Date().toISOString();
+    const engine=new LtEngine("en-US",new Uint8Array(pack),JSON.stringify({today}));
+    window.ltGrammarEngine=engine;
+    window.ltGrammarReady=Promise.resolve(engine);
+  }catch(e){
+    console.warn("Local LingoTweaker grammar engine is not ready yet.",e);
+    window.ltGrammarEngine=null;
+    window.ltGrammarReady=Promise.resolve(null);
+  }
+})();
 import { binaryInlined } from "https://unpkg.com/harper.js@2.4.0/dist/binaryInlined.js";
 import { WorkerLinter, Dialect } from "https://unpkg.com/harper.js@2.4.0/dist/index.js";
 const harper = new WorkerLinter({ binary: binaryInlined, dialect: Dialect.American });
 window.harperLinter = harper;
 window.harperReady = harper.lint("Harper grammar test.");
 </script>
-<script src="app.js?v=20260923-8"></script>
+<script src="app.js?v=20260923-9"></script>
 </body></html>
