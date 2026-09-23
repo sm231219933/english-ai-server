@@ -143,4 +143,65 @@ function freeStop(){
   fb.innerHTML=fixes.length?"<b>Practice these grammar corrections:</b><br>"+fixes.map(x=>"❌ "+x.bad+" → <strong>"+x.good+"</strong>").join("<br>")+"<br><br>Now say your idea again.":grammarHTML(fixes)+"<br><br>Keep speaking and add more detail.";
 }
 $("freeSpeak").onclick=()=>freeRunning?freeStop():freeStart();
+
+// Standalone spoken grammar checker.
+function grammarCheckSentence(raw){
+  const text=normalizeSpeechText(raw);
+  const fixes=commonGrammar(text);
+  let corrected=text;
+  fixes.forEach(x=>{
+    if(x.bad && x.good && x.bad!==x.good){
+      const escaped=x.bad.replace(/[.*+?^$()|[\\]\\]/g,"\\$("freeSpeak").onclick=()=>freeRunning?freeStop():freeStart();");
+      corrected=corrected.replace(new RegExp(escaped,"i"),x.good);
+    }
+  });
+  return {text,fixes,corrected};
+}
+let grammarLastCorrection="";
+function startGrammarTool(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    $("grammarStatus").textContent="Speech recognition is not supported. Please use Chrome or Edge.";
+    return;
+  }
+  const btn=$("grammarSpeak");
+  btn.disabled=true;btn.textContent="🎤 Listening...";
+  $("grammarStatus").textContent="Speak one complete English sentence...";
+  const rec=new SR();
+  rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;
+  rec.onresult=e=>showGrammarToolResult(e.results[0][0].transcript);
+  rec.onerror=e=>{
+    $("grammarStatus").textContent="I couldn't hear that ("+e.error+"). Tap the microphone and try again.";
+    btn.disabled=false;btn.textContent="🎤 Speak a sentence";
+  };
+  rec.onend=()=>{btn.disabled=false;btn.textContent="🎤 Speak a sentence"};
+  rec.start();
+}
+function showGrammarToolResult(raw){
+  const result=grammarCheckSentence(raw);
+  const heard=$("grammarHeard"),box=$("grammarResult");
+  heard.className="heard";
+  heard.innerHTML="<b>You said:</b> "+raw;
+  if(!result.text || result.text.split(/\s+/).length<2){
+    box.className="feedback bad";
+    box.innerHTML="⚠️ Please say a complete sentence so I can check it.";
+    return;
+  }
+  grammarLastCorrection=result.corrected;
+  $("grammarListen").disabled=false;
+  if(result.fixes.length){
+    box.className="feedback bad";
+    box.innerHTML="<div class='grammar-title'>❌ Mistake found</div><div class='correction'><b>Better sentence:</b> "+result.corrected+"</div>"+
+      result.fixes.map(x=>"<div>❌ <strong>"+x.bad+"</strong> → <strong>"+x.good+"</strong></div>").join("")+
+      "<div class='explanation'>Tip: use the verb that matches the subject. For example, <b>my father was</b>, not <b>my father were</b>.</div>";
+    $("grammarStatus").textContent="I found a grammar mistake. See the correction below.";
+  }else{
+    box.className="feedback good";
+    box.innerHTML="<div class='grammar-title'>✅ Looks good</div><div class='correction'>"+result.text+"</div><div class='explanation'>No common grammar mistake was detected in this sentence.</div>";
+    $("grammarStatus").textContent="No common grammar mistake detected.";
+  }
+}
+$("grammarSpeak").onclick=startGrammarTool;
+$("grammarListen").onclick=()=>grammarLastCorrection&&speakText(grammarLastCorrection);
+
 render();
