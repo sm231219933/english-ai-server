@@ -52,5 +52,7 @@ jobs:
             echo "No grammar engine changes."
           else
             git commit -m "Build local LanguageTool-compatible WASM grammar engine"
+            git fetch origin main
+            git rebase origin/main
             git push
           fi
