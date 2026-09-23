@@ -546,8 +546,9 @@ async function showGrammarToolResult(raw){
   box.innerHTML="🔎 Checking grammar locally...";
   $("grammarStatus").textContent="Checking your sentence on your device...";
 
-  // IMPORTANT: keep the original spoken casing for the main checker.
-  // The local grammar engine still uses normalized lowercase text internally.
+  // LingoTweaker is the only external grammar engine used here.
+  // It is a local LanguageTool-derived WASM engine; no grammar text is sent
+  // to a remote grammar server. Our systematic rules remain active as well.
   const lt=await lingoCheckSentence(raw.trim());
   const localFixes=result.fixes;
   let findings=[];
@@ -557,19 +558,8 @@ async function showGrammarToolResult(raw){
   if(lt.available){
     const checked=lingoResult(raw.trim(),lt.matches);
     findings=checked.findings;
-    // Prefer our structural grammar corrections when both engines flag the
-    // same sentence. This prevents a weaker deletion suggestion from undoing
-    // a stronger correction such as "she my wife" -> "she is my wife".
     if(!localFixes.length) corrected=checked.corrected;
     engineLabel="LingoTweaker (LanguageTool-derived) + systematic grammar engine";
-  }else{
-    const h=await harperCheckSentence(raw.trim());
-    if(h.available){
-      const checked=harperResult(raw.trim(),h.lints);
-      findings=checked.findings;
-      if(!localFixes.length) corrected=checked.corrected;
-      engineLabel="Harper fallback + systematic grammar engine";
-    }
   }
 
   localFixes.forEach(x=>{
@@ -581,12 +571,12 @@ async function showGrammarToolResult(raw){
     }
   });
 
-  // Suppress capitalization-only complaints that are artifacts of speech
-  // recognition/normalization, especially the first-person pronoun I.
+  // Never report capitalization-only findings for spoken sentences.
+  // Speech recognition casing is presentation data, not a grammar mistake.
   findings=findings.filter(x=>{
-    const wrong=(x.wrong||"").trim().toLowerCase();
-    const good=(x.good||"").trim().toLowerCase();
-    return !(wrong==="i" && good==="i" && /^i\b/.test(raw.trim()));
+    const wrong=(x.wrong||"").trim();
+    const good=(x.good||"").trim();
+    return !(wrong.toLowerCase()!==good.toLowerCase() && /^[a-z]+$/.test(wrong) && /^[A-Z][a-z]*$/.test(good) && wrong.toLowerCase()===good.toLowerCase());
   });
 
   grammarLastCorrection=corrected;
