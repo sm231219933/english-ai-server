@@ -344,7 +344,7 @@ function freeStop(){
   freeRunning=false;clearInterval(timer);try{freeRecognition.stop()}catch(e){}
   $("freeSpeak").textContent="🎤 Start 60-second challenge";
   const text=$("freeText").textContent,normalized=normalizeSpeechText(text),fixes=commonGrammar(normalized),fb=$("freeFeedback");
-  if(!normalized || normalized.split(/\\s+/).filter(Boolean).length<3){
+  if(!normalized || normalized.split(/\s+/).filter(Boolean).length<3){
     fb.className="feedback bad";
     fb.innerHTML="⚠️ <b>I couldn't understand enough of your speech to check the grammar.</b><br>Try speaking one complete sentence clearly, then continue.";
     return;
@@ -586,7 +586,7 @@ async function showGrammarToolResult(raw){
   findings=findings.filter(x=>{
     const wrong=(x.wrong||"").trim().toLowerCase();
     const good=(x.good||"").trim().toLowerCase();
-    return !(wrong==="i" && good==="i" && /^i\\b/.test(raw.trim()));
+    return !(wrong==="i" && good==="i" && /^i\b/.test(raw.trim()));
   });
 
   grammarLastCorrection=corrected;
