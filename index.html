@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>English Speaking Practice</title><meta name="description" content="Free browser-based English speaking practice.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="brand">English Speaking AI</div><span class="badge">100% browser-based</span></header>
+<main>
+<section class="hero"><p class="eyebrow">SPEAK • LISTEN • IMPROVE</p><h1>Learn English by <span>speaking</span>, not memorising.</h1><p class="sub">Practice real situations. Listen, speak, get feedback, and try again.</p><div class="privacy">🔒 No AWS server is used by this speaking page.</div></section>
+<section class="card">
+<div class="row between"><div><label for="scenario">Practice scenario</label><select id="scenario"><option value="restaurant">Restaurant</option><option value="daily">Daily conversation</option><option value="interview">Job interview</option><option value="travel">Travel</option></select></div><div class="score" id="score">0/0</div></div>
+<div class="progress"><div id="bar"></div></div>
+<div class="prompt"><div class="label">LISTEN & SPEAK</div><h2 id="promptText"></h2><p id="hint"></p></div>
+<div class="controls"><button class="secondary" id="listen">🔊 Listen</button><button class="primary" id="speak">🎤 Start speaking</button></div>
+<div id="status" class="status">Ready.</div><div id="heard" class="heard hidden"></div><div id="feedback" class="feedback hidden"></div>
+<div class="actions"><button class="secondary" id="retry">↻ Try again</button><button class="primary" id="next">Next →</button></div>
+</section>
+<section class="card"><div class="label">FREE SPEAKING</div><h2>60-second challenge</h2><p>Speak about the topic without stopping. Your browser turns speech into text and the practice engine checks common mistakes.</p><div class="topic">Tell me about your daily routine.</div><div class="controls"><button class="primary" id="freeSpeak">🎤 Start 60-second challenge</button></div><div class="timer" id="freeTimer">60</div><div class="transcript" id="freeText"></div><div id="freeFeedback" class="feedback hidden"></div></section>
+</main><script src="app.js"></script>
+</body></html>
