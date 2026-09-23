@@ -3,7 +3,21 @@ const lessons={restaurant:[["I'd like a cup of coffee, please.","Listen first, t
 let scenario="restaurant",index=0,correct=0,attempted=0,recognition=null,freeRecognition=null,freeRunning=false,freeSeconds=60,timer=null;
 const $=id=>document.getElementById(id);
 const current=()=>lessons[scenario][index][0];
-const normalize=s=>s.toLowerCase().replace(/[^a-z0-9\s']/g,"").replace(/\s+/g," ").trim();
+function normalizeSpeechText(s){
+  let t=s.toLowerCase().replace(/[^a-z0-9\\s']/g," ").replace(/\\s+/g," ").trim();
+  // Speech recognition sometimes spells common words letter-by-letter: "w e r e".
+  const spelled={
+    "w e r e":"were","w a s":"was","a m":"am","i s":"is","a r e":"are",
+    "h e":"he","s h e":"she","i t":"it","i":"i","h a s":"has","h a v e":"have",
+    "d o":"do","d o n t":"dont","d o e s":"does","g o":"go","g o e s":"goes",
+    "t h e":"the","a n":"an","a":"a","t o":"to"
+  };
+  Object.keys(spelled).sort((a,b)=>b.length-a.length).forEach(k=>{
+    t=t.replace(new RegExp("\\\\b"+k.replace(/ /g,"\\\\s+")+"\\\\b","gi"),spelled[k]);
+  });
+  return t.replace(/\\s+/g," ").trim();
+}
+const normalize=s=>normalizeSpeechText(s);
 const words=s=>normalize(s).split(" ").filter(Boolean);
 
 function similarity(a,b){
@@ -15,6 +29,7 @@ function similarity(a,b){
 }
 
 function commonGrammar(text){
+  text=normalizeSpeechText(text);
   const rules=[
     [/\b(i)\s+is\b/i,"I is","I am"],
     [/\b(i)\s+are\b/i,"I are","I am"],
@@ -27,14 +42,16 @@ function commonGrammar(text){
     [/\b(i|you|we|they)\s+is\b/i,"is","are"],
     [/\b(i|you|we|they)\s+was\b/i,"was","were"],
     [/\b(i|you|we|they)\s+has\b/i,"has","have"],
-    [/\b(he|she|it)\s+were\b/i,"were","was"],
-    [/\b(he|she|it)\s+are\b/i,"are","is"],
+    [/\b(he|she|it|my father|my mother|my brother|my sister|the man|the woman|the boy|the girl)\s+were\b/i,"were","was"],
+    [/\b(he|she|it|my father|my mother|my brother|my sister|the man|the woman|the boy|the girl)\s+are\b/i,"are","is"],
     [/\b(he|she|it)\s+don't\b/i,"don't","doesn't"],
     [/\b(yesterday|last night|last week|last month)\s+[^.]*\b(go|eat|buy|see|come)\b/i,"past-tense verb","use the past tense"],
     [/\b(can|should|must)\s+to\s+/i,"to + verb","can/should/must + verb"],
     [/\b(want|need|like)\s+go\b/i,"want/need/like go","want/need/like to go"],
     [/\b(a|an)\s+[aeiou][a-z]*\b/i,"article","check a/an"],
     [/\b(people|children|men|women)\s+is\b/i,"is","are"],
+    [/\b(my father|my mother|my brother|my sister|the man|the woman|the boy|the girl)\s+was\b/i,"was","was"],
+    [/\b(my father|my mother|my brother|my sister|the man|the woman|the boy|the girl)\s+have\b/i,"have","has"],
     [/\b(there)\s+is\s+[^.]*\b(people|things|cars|books)\b/i,"there is","there are"]
   ];
   return rules.filter(r=>r[0].test(text)).map(r=>({bad:r[1],good:r[2]}));
@@ -116,7 +133,12 @@ function freeStop(){
   if(!freeRunning)return;
   freeRunning=false;clearInterval(timer);try{freeRecognition.stop()}catch(e){}
   $("freeSpeak").textContent="🎤 Start 60-second challenge";
-  const text=$("freeText").textContent,fixes=commonGrammar(text),fb=$("freeFeedback");
+  const text=$("freeText").textContent,normalized=normalizeSpeechText(text),fixes=commonGrammar(normalized),fb=$("freeFeedback");
+  if(!normalized || normalized.split(/\\s+/).filter(Boolean).length<3){
+    fb.className="feedback bad";
+    fb.innerHTML="⚠️ <b>I couldn't understand enough of your speech to check the grammar.</b><br>Try speaking one complete sentence clearly, then continue.";
+    return;
+  }
   fb.className="feedback "+(fixes.length?"bad":"good");
   fb.innerHTML=fixes.length?"<b>Practice these grammar corrections:</b><br>"+fixes.map(x=>"❌ "+x.bad+" → <strong>"+x.good+"</strong>").join("<br>")+"<br><br>Now say your idea again.":grammarHTML(fixes)+"<br><br>Keep speaking and add more detail.";
 }
