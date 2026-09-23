@@ -151,8 +151,7 @@ function grammarCheckSentence(raw){
   let corrected=text;
   fixes.forEach(x=>{
     if(x.bad && x.good && x.bad!==x.good){
-      const escaped=x.bad.replace(/[.*+?^$()|[\\]\\]/g,"\\$("freeSpeak").onclick=()=>freeRunning?freeStop():freeStart();");
-      corrected=corrected.replace(new RegExp(escaped,"i"),x.good);
+      corrected=corrected.replace(x.bad,x.good);
     }
   });
   return {text,fixes,corrected};
