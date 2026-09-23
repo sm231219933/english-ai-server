@@ -15,7 +15,7 @@ function normalizeSpeechText(s){
   Object.keys(spelled).sort((a,b)=>b.length-a.length).forEach(k=>{
     t=t.replace(new RegExp("\\b"+k.replace(/ /g,"\\s+")+"\\b","gi"),spelled[k]);
   });
-  return t.replace(/\\s+/g," ").trim();
+  return t.replace(/\s+/g," ").trim();
 }
 const normalize=s=>normalizeSpeechText(s);
 const words=s=>normalize(s).split(" ").filter(Boolean);
@@ -73,6 +73,14 @@ function commonGrammar(text){
     };
     add(subject+" "+verb,map[subject][verb],reason);
   });
+
+  // 3b) Missing copula after subject pronouns: "she my wife" -> "she is my wife".
+  const copulaMissing=text.match(/\\b(i|you|he|she|it|we|they)\\s+(my|your|his|her|our|their)\\s+([a-z]+)\\b/i);
+  if(copulaMissing){
+    const subject=copulaMissing[1].toLowerCase();
+    const verb=subject==="i"?"am":(subject==="you"||subject==="we"||subject==="they")?"are":"is";
+    add(copulaMissing[0],subject+" "+verb+" "+copulaMissing[2]+" "+copulaMissing[3],"A subject pronoun needs a form of be before a possessive phrase here.");
+  }
 
   // 4) Common singular/plural noun agreement without naming individual sentences.
   if(/\\b(people|children|men|women|cars|books|things|students|friends)\\s+is\\b/i.test(text))
