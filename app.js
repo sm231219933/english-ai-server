@@ -328,49 +328,56 @@ async function showGrammarToolResult(raw){
   const heard=$("grammarHeard"),box=$("grammarResult");
   heard.className="heard";
   heard.innerHTML="<b>You said:</b> "+raw;
-  if(!result.text || result.text.split(/\s+/).length<2){
+  if(!result.text || result.text.split(/\\s+/).length<2){
     box.className="feedback bad";
     box.innerHTML="⚠️ Please say a complete sentence so I can check it.";
     return;
   }
+
   box.className="feedback";
   box.innerHTML="🔎 Checking grammar...";
   $("grammarStatus").textContent="Checking your sentence locally...";
 
   const h=await harperCheckSentence(result.text);
+  const localFixes=result.fixes;
+  let findings=[];
+  let corrected=result.text;
+  let engineLabel="Systematic local grammar engine";
+
   if(h.available){
     const checked=harperResult(result.text,h.lints);
-    grammarLastCorrection=checked.corrected;
-    $("grammarListen").disabled=false;
-    if(checked.findings.length){
-      box.className="feedback bad";
-      box.innerHTML="<div class='grammar-title'>❌ Mistake found</div><div class='correction'><b>Better sentence:</b> "+checked.corrected+"</div>"+
-        checked.findings.map(x=>"<div>❌ <strong>"+x.wrong+"</strong> → <strong>"+(x.good||"remove")+"</strong><br><small>"+x.message+"</small></div>").join("<br>")+
-        "<div class='explanation'>Checked locally by Harper. Your sentence is not sent to a grammar server.</div>";
-      $("grammarStatus").textContent="Grammar feedback found.";
-    }else{
-      box.className="feedback good";
-      box.innerHTML="<div class='grammar-title'>✅ Looks good</div><div class='correction'>"+result.text+"</div><div class='explanation'>Harper did not detect a grammar or spelling issue.</div>";
-      $("grammarStatus").textContent="No issue detected.";
-    }
-    return;
+    corrected=checked.corrected;
+    findings=checked.findings.map(x=>({wrong:x.wrong,good:x.good,message:x.message,source:"Harper"}));
+    engineLabel="Harper + systematic grammar engine";
   }
 
-  grammarLastCorrection=result.corrected;
+  // Always merge the systematic grammar engine with Harper.
+  // This prevents a broad grammar category from being missed just because Harper
+  // did not flag that particular construction.
+  localFixes.forEach(x=>{
+    const duplicate=findings.some(f=>f.wrong.toLowerCase()===x.bad.toLowerCase() && f.good.toLowerCase()===x.good.toLowerCase());
+    if(!duplicate) findings.push({wrong:x.bad,good:x.good,message:x.reason,source:"Grammar engine"});
+    if(x.bad && x.good && x.bad!==x.good){
+      const escaped=x.bad.replace(/[.*+?^()$|[\\]\\]/g,"\\\\$&");
+      corrected=corrected.replace(new RegExp(escaped,"i"),x.good);
+    }
+  });
+
+  grammarLastCorrection=corrected;
   $("grammarListen").disabled=false;
-  if(result.fixes.length){
+
+  if(findings.length){
     box.className="feedback bad";
-    box.innerHTML="<div class='grammar-title'>❌ Mistake found</div><div class='correction'><b>Better sentence:</b> "+result.corrected+"</div>"+
-      result.fixes.map(x=>"<div>❌ <strong>"+x.bad+"</strong> → <strong>"+x.good+"</strong></div>").join("")+
-      "<div class='explanation'>Harper could not load, so the local fallback rules were used.</div>";
-    $("grammarStatus").textContent="Basic local grammar check completed.";
+    box.innerHTML="<div class='grammar-title'>❌ Mistake found</div><div class='correction'><b>Better sentence:</b> "+corrected+"</div>"+
+      findings.map(x=>"<div>❌ <strong>"+x.wrong+"</strong> → <strong>"+(x.good||"remove")+"</strong><br><small>"+x.message+"</small></div>").join("<br>")+
+      "<div class='explanation'>Checked on your device using "+engineLabel+". Your sentence is not sent to a grammar server.</div>";
+    $("grammarStatus").textContent="Grammar feedback found.";
   }else{
     box.className="feedback good";
-    box.innerHTML="<div class='grammar-title'>ℹ️ Basic check</div><div class='correction'>"+result.text+"</div><div class='explanation'>Harper could not load, so only the basic local rules were used.</div>";
-    $("grammarStatus").textContent="Basic local check completed.";
+    box.innerHTML="<div class='grammar-title'>✅ Looks good</div><div class='correction'>"+result.text+"</div><div class='explanation'>No issue was detected by "+engineLabel+".</div>";
+    $("grammarStatus").textContent="No issue detected.";
   }
 }
-
 $("grammarSpeak").onclick=startGrammarTool;
 $("grammarSend").onclick=()=>{
   if(!grammarPendingText.trim())return;
