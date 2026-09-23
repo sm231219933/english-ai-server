@@ -31,7 +31,7 @@ function similarity(a,b){
 function commonGrammar(text){
   text=normalizeSpeechText(text);
   const rules=[
-    [/\b(more)\s+(better|worse|faster|slower|bigger|smaller|stronger|weaker|higher|lower|easier|harder|older|younger|closer|farther)\b/i,"more $2","$2"],
+    [/\bmore\s+(better|worse|faster|slower|bigger|smaller|stronger|weaker|higher|lower|easier|harder|older|younger|closer|farther)\b/i,"more better","better"],
     [/\b(i)\s+is\b/i,"I is","I am"],
     [/\b(i)\s+are\b/i,"I are","I am"],
     [/\b(i)\s+has\b/i,"I has","I have"],
