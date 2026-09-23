@@ -405,6 +405,8 @@ function startGrammarTool(){
   const send=$("grammarSend");
   btn.disabled=true;
   send.disabled=true;
+  $("grammarRespeak").disabled=true;
+  $("grammarListen").disabled=true;
   btn.textContent="🎤 Listening...";
   $("grammarStatus").textContent="Listening... speak your sentence.";
   $("grammarLive").className="heard";
@@ -530,6 +532,7 @@ async function showGrammarToolResult(raw){
   }
 }
 $("grammarSpeak").onclick=startGrammarTool;
+$("grammarRespeak").onclick=resetGrammarSpeech;
 $("grammarSend").onclick=()=>{
   if(!grammarPendingText.trim())return;
   try{if(grammarRecognition)grammarRecognition.stop()}catch(e){}
