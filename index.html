@@ -24,7 +24,7 @@
 </main><script type="module">
 /* Primary grammar engine: LingoTweaker, a LanguageTool-derived Rust/WASM port.
    The engine and English data are generated into the repository by GitHub Actions,
-   so no grammar text is sent to a server. Harper remains a fallback. */
+   so no grammar text is sent to a server. LingoTweaker is the grammar engine. */
 (async()=>{
   try{
     const { default: init, LtEngine } = await import("./vendor/lingotweaker/pkg/lt_wasm.js");
@@ -43,11 +43,6 @@
     window.ltGrammarReady=Promise.resolve(null);
   }
 })();
-import { binaryInlined } from "https://unpkg.com/harper.js@2.4.0/dist/binaryInlined.js";
-import { WorkerLinter, Dialect } from "https://unpkg.com/harper.js@2.4.0/dist/index.js";
-const harper = new WorkerLinter({ binary: binaryInlined, dialect: Dialect.American });
-window.harperLinter = harper;
-window.harperReady = harper.lint("Harper grammar test.");
 </script>
-<script src="app.js?v=20260923-10"></script>
+<script src="app.js?v=20260923-12"></script>
 </body></html>
