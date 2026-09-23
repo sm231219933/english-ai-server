@@ -462,6 +462,51 @@ async function harperCheckSentence(text){
   }
 }
 
+async function lingoCheckSentence(text){
+  try{
+    if(window.ltGrammarReady) await window.ltGrammarReady;
+    if(!window.ltGrammarEngine)return {available:false,matches:[]};
+    const data=JSON.parse(window.ltGrammarEngine.check_json(text));
+    return {available:true,matches:Array.isArray(data.matches)?data.matches:[]};
+  }catch(e){
+    console.warn("LingoTweaker check failed.",e);
+    return {available:false,matches:[]};
+  }
+}
+
+function lingoResult(text,matches){
+  const findings=[];
+  let corrected=text;
+  const ordered=[...matches].sort((a,b)=>(b.range?.start||0)-(a.range?.start||0));
+  const byteToIndex=(str,byteOffset)=>{
+    if(!byteOffset)return 0;
+    let bytes=0;
+    for(let i=0;i<str.length;i++){
+      bytes+=new TextEncoder().encode(str[i]).length;
+      if(bytes>=byteOffset)return i+1;
+    }
+    return str.length;
+  };
+  ordered.forEach(match=>{
+    const range=match.range||{};
+    const start=byteToIndex(text,range.start||0);
+    const end=byteToIndex(text,range.end||0);
+    const wrong=text.slice(start,end);
+    const suggestions=Array.isArray(match.suggestions)?match.suggestions:[];
+    const suggestion=suggestions[0];
+    const good=suggestion&&typeof suggestion.value==="string"?suggestion.value:"";
+    findings.push({
+      wrong,
+      good,
+      message:match.message||"LanguageTool grammar rule detected a possible issue.",
+      source:"LingoTweaker"
+    });
+    if(good) corrected=corrected.slice(0,start)+good+corrected.slice(end);
+  });
+  findings.reverse();
+  return {corrected,findings};
+}
+
 function harperResult(text,lints){
   let corrected=text;
   const findings=[];
@@ -471,7 +516,7 @@ function harperResult(text,lints){
     const suggestion=suggestions&&suggestions.length?suggestions[0]:null;
     const wrong=text.slice(span.start,span.end);
     const good=suggestion?suggestion.get_replacement_text():"";
-    findings.push({wrong,good,message:lint.message()});
+    findings.push({wrong,good,message:lint.message(),source:"Harper"});
     if(suggestion) corrected=corrected.slice(0,span.start)+good+corrected.slice(span.end);
   });
   findings.reverse();
@@ -481,36 +526,44 @@ function harperResult(text,lints){
 async function showGrammarToolResult(raw){
   const result=grammarCheckSentence(raw);
   const heard=$("grammarHeard"),box=$("grammarResult");
-  // Never treat the spoken first-person pronoun I as a grammar error merely
-  // because normalizeSpeechText() lowercased it internally.
   heard.className="heard";
   heard.innerHTML="<b>You said:</b> "+raw;
-  if(!result.text || result.text.split(/\s+/).filter(Boolean).length<2){
+  if(!result.text || result.text.split(/\\s+/).filter(Boolean).length<2){
     box.className="feedback bad";
     box.innerHTML="⚠️ Please say a complete sentence so I can check it.";
     return;
   }
 
   box.className="feedback";
-  box.innerHTML="🔎 Checking grammar...";
-  $("grammarStatus").textContent="Checking your sentence locally...";
+  box.innerHTML="🔎 Checking grammar locally...";
+  $("grammarStatus").textContent="Checking your sentence on your device...";
 
-  const h=await harperCheckSentence(result.text);
+  // IMPORTANT: keep the original spoken casing for the main checker.
+  // The local grammar engine still uses normalized lowercase text internally.
+  const lt=await lingoCheckSentence(raw.trim());
   const localFixes=result.fixes;
   let findings=[];
   let corrected=result.text;
   let engineLabel="Systematic local grammar engine";
 
-  if(h.available){
-    const checked=harperResult(result.text,h.lints);
-    corrected=checked.corrected;
-    findings=checked.findings.map(x=>({wrong:x.wrong,good:x.good,message:x.message,source:"Harper"}));
-    engineLabel="Harper + systematic grammar engine";
+  if(lt.available){
+    const checked=lingoResult(raw.trim(),lt.matches);
+    findings=checked.findings;
+    // Prefer our structural grammar corrections when both engines flag the
+    // same sentence. This prevents a weaker deletion suggestion from undoing
+    // a stronger correction such as "she my wife" -> "she is my wife".
+    if(!localFixes.length) corrected=checked.corrected;
+    engineLabel="LingoTweaker (LanguageTool-derived) + systematic grammar engine";
+  }else{
+    const h=await harperCheckSentence(raw.trim());
+    if(h.available){
+      const checked=harperResult(raw.trim(),h.lints);
+      findings=checked.findings;
+      if(!localFixes.length) corrected=checked.corrected;
+      engineLabel="Harper fallback + systematic grammar engine";
+    }
   }
 
-  // Always merge the systematic grammar engine with Harper.
-  // This prevents a broad grammar category from being missed just because Harper
-  // did not flag that particular construction.
   localFixes.forEach(x=>{
     const duplicate=findings.some(f=>f.wrong.toLowerCase()===x.bad.toLowerCase() && f.good.toLowerCase()===x.good.toLowerCase());
     if(!duplicate) findings.push({wrong:x.bad,good:x.good,message:x.reason,source:"Grammar engine"});
@@ -518,6 +571,14 @@ async function showGrammarToolResult(raw){
       const escaped=x.bad.replace(/[.*+?^()$|[\\]\\]/g,"\\\\$&");
       corrected=corrected.replace(new RegExp(escaped,"i"),x.good);
     }
+  });
+
+  // Suppress capitalization-only complaints that are artifacts of speech
+  // recognition/normalization, especially the first-person pronoun I.
+  findings=findings.filter(x=>{
+    const wrong=(x.wrong||"").trim().toLowerCase();
+    const good=(x.good||"").trim().toLowerCase();
+    return !(wrong==="i" && good==="i" && /^i\\b/.test(raw.trim()));
   });
 
   grammarLastCorrection=corrected;
@@ -531,7 +592,7 @@ async function showGrammarToolResult(raw){
     $("grammarStatus").textContent="Grammar feedback found.";
   }else{
     box.className="feedback good";
-    box.innerHTML="<div class='grammar-title'>✅ Looks good</div><div class='correction'>"+result.text+"</div><div class='explanation'>No issue was detected by "+engineLabel+".</div>";
+    box.innerHTML="<div class='grammar-title'>✅ Looks good</div><div class='correction'>"+raw.trim()+"</div><div class='explanation'>No issue was detected by "+engineLabel+". Your sentence is not sent to a grammar server.</div>";
     $("grammarStatus").textContent="No issue detected.";
   }
 }
