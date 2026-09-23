@@ -35,6 +35,12 @@ function commonGrammar(text){
   if(doubleComparative){
     fixes.push({bad:doubleComparative[0],good:doubleComparative[1]});
   }
+  const modalThirdPerson=text.match(/\b(can|could|should|must|may|might)\s+([a-z]+s)\b/i);
+  if(modalThirdPerson){
+    const verb=modalThirdPerson[2];
+    const base=verb.endsWith("ies")?verb.slice(0,-3)+"y":verb.endsWith("es")?verb.slice(0,-2):verb.slice(0,-1);
+    fixes.push({bad:modalThirdPerson[0],good:modalThirdPerson[1]+" "+base});
+  }
   const rules=[
     [/\b(i)\s+is\b/i,"I is","I am"],
     [/\b(i)\s+are\b/i,"I are","I am"],
@@ -51,8 +57,7 @@ function commonGrammar(text){
     [/\b(he|she|it)\s+don't\b/i,"don't","doesn't"],
     [/\b(yesterday|last night|last week|last month)\s+[^.]*\b(go|eat|buy|see|come)\b/i,"past-tense verb","use the past tense"],
     [/\b(can|could|should|must|may|might)\s+to\s+/i,"to + verb","modal + verb (remove 'to')"],
-    [/\b(can|could|should|must|may|might)\s+(goes|sings|eats|drinks|plays|works|runs|likes|wants|needs|does|has)\b/i,"modal + third-person verb","modal + base verb"],
-    [/\b(can|could|should|must|may|might)\s+([a-z]+s)\b/i,"modal + "+ "$2","modal + base verb"],
+
     [/\b(want|need|like)\s+go\b/i,"want/need/like go","want/need/like to go"],
     [/\b(people|children|men|women)\s+is\b/i,"is","are"],
     [/\b(my father|my mother|my brother|my sister|the man|the woman|the boy|the girl)\s+was\b/i,"was","was"],
