@@ -31,119 +31,239 @@ function similarity(a,b){
 function commonGrammar(text){
   text=normalizeSpeechText(text);
   const fixes=[];
-  const add=(bad,good,reason)=>fixes.push({bad,good,reason});
+  const add=(bad,good,reason,priority=50)=>fixes.push({bad,good,reason,priority});
+  const first=(re,handler)=>{
+    const m=text.match(re);
+    if(m) handler(m);
+  };
+  const baseForm=(v)=>{
+    v=v.toLowerCase();
+    if(v==="went") return "go";
+    if(v==="gone") return "go";
+    if(v==="was"||v==="were") return "be";
+    if(v==="has"||v==="had") return "have";
+    if(v==="did") return "do";
+    if(v.endsWith("ies") && v.length>3) return v.slice(0,-3)+"y";
+    if(v.endsWith("es") && v.length>3) return v.slice(0,-2);
+    if(v.endsWith("s") && v.length>2) return v.slice(0,-1);
+    return v;
+  };
+  const thirdForm=(v)=>{
+    v=v.toLowerCase();
+    if(/(s|x|z|ch|sh|o)$/.test(v)) return v+"es";
+    if(/[^aeiou]y$/.test(v)) return v.slice(0,-1)+"ies";
+    return v+"s";
+  };
 
-  // 1) Modal/auxiliary verbs always take a base-form main verb.
-  const modal=/\\b(can|could|may|might|must|shall|should|will|would)\\s+([a-z]+)\\b/gi;
-  let m;
-  while((m=modal.exec(text))){
-    const v=m[2].toLowerCase();
-    if(v.endsWith("ies")) add(m[0],m[1]+" "+v.slice(0,-3)+"y","After a modal verb, use the base form of the verb.");
-    else if(v.endsWith("es")) add(m[0],m[1]+" "+v.slice(0,-2),"After a modal verb, use the base form of the verb.");
-    else if(v.endsWith("s")) add(m[0],m[1]+" "+v.slice(0,-1),"After a modal verb, use the base form of the verb.");
-  }
-
-  // 2) Do/does/did also require the base form.
-  const aux=/\\b(do|does|did)\\s+([a-z]+)\\b/gi;
-  while((m=aux.exec(text))){
-    const v=m[2].toLowerCase();
-    if(v.endsWith("ies")) add(m[0],m[1]+" "+v.slice(0,-3)+"y","After do/does/did, use the base form of the verb.");
-    else if(v.endsWith("es")) add(m[0],m[1]+" "+v.slice(0,-2),"After do/does/did, use the base form of the verb.");
-    else if(v.endsWith("s")) add(m[0],m[1]+" "+v.slice(0,-1),"After do/does/did, use the base form of the verb.");
-  }
-
-  // 3) Subject-verb agreement for common pronoun subjects.
-  const agreement=[
-    [/(^|\\s)(i)\\s+(is|are|has)\\b/i,"I is","I am","Use am with I."],
-    [/(^|\\s)(you|we|they)\\s+(is|was|has)\\b/i,null,null,"Use are/were/have with you, we and they."],
-    [/(^|\\s)(he|she|it)\\s+(are|were|have)\\b/i,null,null,"Use is/was/has with he, she and it."]
+  // 1. Subject + be agreement.
+  const beRules=[
+    [/\\b(i)\\s+(is|are|was|were)\\b/gi,"I am","Use am with I."],
+    [/\\b(you|we|they)\\s+(is|was)\\b/gi,null,"Use are/were with you, we and they."],
+    [/\\b(you|we|they)\\s+(has)\\b/gi,null,"Use have with you, we and they."],
+    [/\\b(he|she|it)\\s+(are|were)\\b/gi,null,"Use is/was with he, she and it."],
+    [/\\b(he|she|it)\\s+(have)\\b/gi,null,"Use has with he, she and it."]
   ];
-  agreement.forEach(([re,bad,good,reason])=>{
-    const x=text.match(re);
-    if(!x)return;
-    const subject=x[2].toLowerCase(),verb=x[3].toLowerCase();
-    const map={
-      i:{is:"I am",are:"I am",has:"I have"},
-      you:{is:"you are",was:"you were",has:"you have"},
-      we:{is:"we are",was:"we were",has:"we have"},
-      they:{is:"they are",was:"they were",has:"they have"},
-      he:{are:"he is",were:"he was",have:"he has"},
-      she:{are:"she is",were:"she was",have:"she has"},
-      it:{are:"it is",were:"it was",have:"it has"}
-    };
-    add(subject+" "+verb,map[subject][verb],reason);
+  beRules.forEach(([re,forced,reason])=>{
+    let m;
+    while((m=re.exec(text))){
+      const s=m[1].toLowerCase(),v=m[2].toLowerCase();
+      const map={i:{is:"am",are:"am",was:"am",were:"am"},you:{is:"are",was:"were",has:"have"},we:{is:"are",was:"were",has:"have"},they:{is:"are",was:"were",has:"have"},he:{are:"is",were:"was",have:"has"},she:{are:"is",were:"was",have:"has"},it:{are:"is",were:"was",have:"has"}};
+      const good=forced?forced.toLowerCase().replace(/^i /,"I "):s+" "+map[s][v];
+      add(m[0],good,reason,100);
+    }
   });
 
-  // 3b) Missing copula after subject pronouns: "she my wife" -> "she is my wife".
-  const copulaMissing=text.match(/\\b(i|you|he|she|it|we|they)\\s+(my|your|his|her|our|their)\\s+([a-z]+)\\b/i);
-  if(copulaMissing){
-    const subject=copulaMissing[1].toLowerCase();
-    const verb=subject==="i"?"am":(subject==="you"||subject==="we"||subject==="they")?"are":"is";
-    add(copulaMissing[0],subject+" "+verb+" "+copulaMissing[2]+" "+copulaMissing[3],"A subject pronoun needs a form of be before a possessive phrase here.");
+  // 2. Missing be before adjective, location, nationality or possessive phrase.
+  first(/\\b(i|you|he|she|it|we|they)\\s+(my|your|his|her|our|their)\\s+[a-z]+\\b/i,m=>{
+    const s=m[1].toLowerCase(),be=s==="i"?"am":/^(you|we|they)$/.test(s)?"are":"is";
+    add(m[0],s+" "+be+" "+m[2]+" "+m[3],"A subject pronoun needs a form of be before this complement.",100);
+  });
+  const commonAdj="happy|sad|tired|busy|ready|late|early|hungry|thirsty|angry|happy|fine|good|bad|sick|well|right|wrong|sure|afraid|available|free|married|single|late|here|there";
+  const subjectAdj=new RegExp("\\b(i|you|he|she|it|we|they)\\s+("+commonAdj+")\\b","gi");
+  let m;
+  while((m=subjectAdj.exec(text))){
+    const s=m[1].toLowerCase();
+    if(/^(am|are|is|was|were)$/.test(m[2].toLowerCase())) continue;
+    const be=s==="i"?"am":/^(you|we|they)$/.test(s)?"are":"is";
+    add(m[0],s+" "+be+" "+m[2],"Use the correct form of be before an adjective or state.",75);
   }
 
-  // 4) Common singular/plural noun agreement without naming individual sentences.
-  if(/\\b(people|children|men|women|cars|books|things|students|friends)\\s+is\\b/i.test(text))
-    add(text.match(/\\b(people|children|men|women|cars|books|things|students|friends)\\s+is\\b/i)[0],
-        text.match(/\\b(people|children|men|women|cars|books|things|students|friends)\\s+is\\b/i)[0].replace(/\\bis\\b/i,"are"),
-        "Plural subjects normally take are.");
-  if(/\\b(people|children|men|women|cars|books|things|students|friends)\\s+was\\b/i.test(text))
-    add(text.match(/\\b(people|children|men|women|cars|books|things|students|friends)\\s+was\\b/i)[0],
-        text.match(/\\b(people|children|men|women|cars|books|things|students|friends)\\s+was\\b/i)[0].replace(/\\bwas\\b/i,"were"),
-        "Plural subjects normally take were.");
-
-  // 5) Singular third-person simple present: he/she/it + base verb.
-  const third=/\\b(he|she|it)\\s+([a-z]+)\\b/gi;
-  while((m=third.exec(text))){
-    const v=m[2].toLowerCase();
-    const ignored=["is","was","has","does","can","could","may","might","must","should","will","would","to","not","very","more","less","really","never","always"];
-    if(ignored.includes(v)) continue;
-    if(/^[a-z]+$/.test(v) && !/(s|ed|ing)$/.test(v)){
-      let thirdForm=v;
-      if(/(s|x|z|ch|sh|o)$/.test(v)) thirdForm=v+"es";
-      else if(/[^aeiou]y$/.test(v)) thirdForm=v.slice(0,-1)+"ies";
-      else thirdForm=v+"s";
-      add(m[0],m[1]+" "+thirdForm,"In the simple present, he/she/it usually takes the third-person singular verb form.");
+  // 3. Modals + base verb.
+  const modal=/\\b(can|could|may|might|must|shall|should|will|would)\\s+(to\\s+)?([a-z]+)\\b/gi;
+  while((m=modal.exec(text))){
+    const modalWord=m[1],verb=m[3].toLowerCase();
+    if(m[2]) add(m[0],modalWord+" "+baseForm(verb),"A modal is followed directly by the base verb, without to.",100);
+    else if(verb!==baseForm(verb) && verb!=="is" && verb!=="are" && verb!=="was" && verb!=="were"){
+      add(m[0],modalWord+" "+baseForm(verb),"After a modal verb, use the base form.",95);
     }
   }
 
-  // 6) Perfect constructions: have/has + past participle. Catch common -ed/-en forms generically.
-  if(/\\b(has|have|had)\\s+went\\b/i.test(text))
-    add(text.match(/\\b(has|have|had)\\s+went\\b/i)[0],text.match(/\\b(has|have|had)\\s+went\\b/i)[1]+" gone","Use the past participle after have/has/had.");
-
-  // 7) Double comparatives/superlatives.
-  const doubleComp=text.match(/\\bmore\\s+(better|worse|faster|slower|bigger|smaller|stronger|weaker|higher|lower|easier|harder|older|younger|closer|farther)\\b/i);
-  if(doubleComp) add(doubleComp[0],doubleComp[1],"Do not use more with an adjective that already has a comparative form.");
-  const doubleSuper=text.match(/\\bmost\\s+(best|worst|fastest|slowest|biggest|smallest|strongest|weakest|highest|lowest|easiest|hardest|oldest|youngest)\\b/i);
-  if(doubleSuper) add(doubleSuper[0],doubleSuper[1],"Do not use most with an adjective that already has a superlative form.");
-
-  // 8) Infinitive patterns.
-  const infinitive=text.match(/\\b(want|need|like|plan|hope|try|decide|learn)\\s+([a-z]+)\\b/i);
-  if(infinitive && !/^(to|is|are|was|were|am|have|has|had)$/i.test(infinitive[2]))
-    add(infinitive[0],infinitive[1]+" to "+infinitive[2],"These verbs commonly take to + the base verb.");
-
-  // 9) Articles before singular countable nouns (small, conservative vocabulary).
-  const article=text.match(/\\b(a|an)\\s+(apple|orange|hour|honest|university|unicorn|useful|European)\\b/i);
-  if(article){
-    const noun=article[2].toLowerCase();
-    const wantsAn=/^(apple|orange|hour|honest)$/.test(noun);
-    const good=wantsAn?"an":"a";
-    if(article[1].toLowerCase()!==good) add(article[0],good+" "+noun,"Choose a/an based on the sound at the start of the next word.");
+  // 4. Do/does/did + base verb.
+  const aux=/\\b(do|does|did)\\s+([a-z]+)\\b/gi;
+  while((m=aux.exec(text))){
+    const v=m[2].toLowerCase();
+    if(!/^(not|so|that|this)$/.test(v) && v!==baseForm(v))
+      add(m[0],m[1]+" "+baseForm(v),"After do/does/did, use the base form of the verb.",95);
   }
 
-  // 10) There is/are with plural nouns.
-  const there=text.match(/\\bthere\\s+(is|was)\\s+(?:a\\s+)?(people|things|cars|books|students|friends)\\b/i);
-  if(there) add(there[0],"there "+(there[1].toLowerCase()==="is"?"are":"were")+" "+there[2],"Use the plural form with a plural noun.");
+  // 5. Third-person simple present for common action verbs.
+  const commonVerbs="go|come|work|live|like|love|want|need|know|think|play|eat|drink|watch|read|write|speak|help|call|start|finish|open|close|make|take|give|tell|ask|use|try|study|learn|drive|walk|run|cook|sleep|feel|look|seem|remember|forget|understand|enjoy|prefer|visit|travel|meet|buy|pay|send|bring|keep|find|work|rain";
+  const third=new RegExp("\\b(he|she|it)\\s+("+commonVerbs+")\\b","gi");
+  while((m=third.exec(text))){
+    const v=m[2].toLowerCase();
+    add(m[0],m[1]+" "+thirdForm(v),"In the simple present, he/she/it normally takes the third-person singular form.",80);
+  }
 
-  // 11) Common negative agreement.
-  const neg=text.match(/\\b(he|she|it)\\s+(don't|do not)\\b/i);
-  if(neg) add(neg[0],neg[1]+" doesn't","Use doesn't with he, she and it.");
+  // 6. Perfect tenses: have/has/had + past participle.
+  const irregular={went:"gone",ate:"eaten",saw:"seen",did:"done",made:"made",took:"taken",gave:"given",came:"come",ran:"run",spoke:"spoken",wrote:"written",broke:"broken",chose:"chosen",knew:"known",began:"begun",drank:"drunk",drove:"driven",forgot:"forgotten",found:"found",got:"gotten",kept:"kept",left:"left",read:"read",said:"said",sent:"sent",sang:"sung",slept:"slept",swam:"swum",thought:"thought",told:"told",understood:"understood",wore:"worn"};
+  const perfect=/\\b(has|have|had)\\s+([a-z]+)\\b/gi;
+  while((m=perfect.exec(text))){
+    const v=m[2].toLowerCase();
+    if(irregular[v]) add(m[0],m[1]+" "+irregular[v],"After have/has/had, use the past participle.",95);
+    else if(/^[a-z]+ed$/.test(v)===false && /^(go|eat|see|do|take|give|speak|write|break|choose|know|begin|drink|drive|forget|find|leave|send|sing|swim|think|tell|wear)$/.test(v))
+      add(m[0],m[1]+" "+v+"ed","Use a past participle after have/has/had.",60);
+  }
 
-  // 12) Remove 'to' after a modal.
-  const modalTo=text.match(/\\b(can|could|may|might|must|should|will|would)\\s+to\\s+([a-z]+)\\b/i);
-  if(modalTo) add(modalTo[0],modalTo[1]+" "+modalTo[2],"A modal verb is followed directly by the base verb.");
+  // 7. Continuous tenses: be + -ing.
+  const continuous=/\\b(am|is|are|was|were)\\s+([a-z]+)\\b/gi;
+  while((m=continuous.exec(text))){
+    const v=m[2].toLowerCase();
+    const auxiliaries=["am","is","are","was","were","been"];
+    if(!auxiliaries.includes(v) && !/ing$/.test(v) && /^(go|come|work|live|eat|drink|sleep|run|walk|study|learn|talk|speak|write|read|watch|play|cook|drive|wait|look|listen|try|travel|rain|rain)$/.test(v))
+      add(m[0],m[1]+" "+v+"ing","Use the -ing form after am/is/are/was/were for a continuous action.",75);
+  }
 
-  return fixes;
+  // 8. Infinitives after common verbs.
+  const infinitive=/\\b(want|need|plan|hope|try|decide|learn|promise|agree|refuse|expect|offer|choose|would like)\\s+([a-z]+)\\b/gi;
+  while((m=infinitive.exec(text))){
+    const v=m[2].toLowerCase();
+    if(!/^(to|is|are|was|were|am|have|has|had|not)$/.test(v))
+      add(m[0],m[1]+" to "+v,"This verb normally takes to + the base verb here.",70);
+  }
+
+  // 9. Gerund after common prepositions.
+  const prepIng=/\\b(after|before|without|by|instead of)\\s+([a-z]+)\\b/gi;
+  while((m=prepIng.exec(text))){
+    const v=m[2].toLowerCase();
+    if(/^(go|come|eat|drink|work|study|learn|talk|speak|drive|walk|run|wait|sleep|watch|read|write)$/.test(v))
+      add(m[0],m[1]+" "+v+"ing","After this preposition, use a gerund (-ing form).",55);
+  }
+
+  // 10. Articles: a/an and common vowel-sound exceptions.
+  const articleWords={apple:"an",orange:"an",hour:"an",honest:"an",heir:"an",honor:"an",university:"a",uniform:"a",unicorn:"a",useful:"a",user:"a",European:"a",one:"a"};
+  const article=/\\b(a|an)\\s+([a-z]+)\\b/gi;
+  while((m=article.exec(text))){
+    const noun=m[2].toLowerCase(),wanted=articleWords[noun]||null;
+    if(wanted && m[1].toLowerCase()!==wanted)
+      add(m[0],wanted+" "+m[2],"Choose a/an according to the sound at the beginning of the next word.",80);
+  }
+
+  // 11. Count/non-count noun quantifiers.
+  const uncountable="advice|information|furniture|luggage|equipment|news|homework|work|money|traffic|knowledge|research";
+  const quant=new RegExp("\\b(many|few|a few|several|these|those|two|three)\\s+("+uncountable+")\\b","gi");
+  while((m=quant.exec(text))) add(m[0],m[1]+" "+m[2],"This noun is normally uncountable in standard English; use a quantity expression such as some or a piece of.",65);
+  const singularCount=new RegExp("\\b(much|little|a little)\\s+([a-z]+)\\b","gi");
+  while((m=singularCount.exec(text))){
+    if(/^(people|students|friends|cars|books|things|questions|days|years|jobs|ideas)$/.test(m[2].toLowerCase()))
+      add(m[0],m[1]==="much"?"many "+m[2]:"a few "+m[2],"Use many/few with plural countable nouns.",65);
+  }
+
+  // 12. Demonstratives + noun number.
+  first(/\\b(this|that)\\s+(people|students|friends|cars|books|things)\\b/i,m=>add(m[0],(m[1].toLowerCase()==="this"?"these ":"those ")+m[2],"Use these/those with plural nouns.",70));
+  first(/\\b(these|those)\\s+(person|student|friend|car|book|thing)\\b/i,m=>add(m[0],(m[1].toLowerCase()==="these"?"this ":"that ")+m[2],"Use this/that with a singular noun.",70));
+
+  // 13. There is/are and there was/were.
+  first(/\\bthere\\s+(is|was)\\s+(people|children|men|women|students|friends|cars|books|things)\\b/i,m=>{
+    const v=m[1].toLowerCase()==="is"?"are":"were";
+    add(m[0],"there "+v+" "+m[2],"The verb agrees with the plural noun after there.",90);
+  });
+
+  // 14. Negative agreement.
+  first(/\\b(he|she|it)\\s+(don't|do not)\\b/i,m=>add(m[0],m[1]+" doesn't","Use doesn't with he, she and it.",90));
+  first(/\\b(i|you|we|they)\\s+(doesn't)\\b/i,m=>add(m[0],m[1]+" don't","Use don't with I, you, we and they.",90));
+
+  // 15. Pronoun case after a verb/preposition.
+  const objectCase=/\\b(call|help|see|meet|invite|tell|ask|give|send|show)\\s+(i|he|she|we|they)\\b/gi;
+  const obj={i:"me",he:"him",she:"her",we:"us",they:"them"};
+  while((m=objectCase.exec(text))) add(m[0],m[1]+" "+obj[m[2].toLowerCase()],"Use an object pronoun after this verb.",55);
+  const prepCase=/\\b(with|for|to|from|between|about|beside|without)\\s+(i|he|she|we|they)\\b/gi;
+  while((m=prepCase.exec(text))) add(m[0],m[1]+" "+obj[m[2].toLowerCase()],"Use an object pronoun after a preposition.",55);
+
+  // 16. Possessive pronoun/article confusion.
+  const possessive={my:"mine",your:"yours",his:"his",her:"hers",our:"ours",their:"theirs"};
+  const poss=/\\b(my|your|his|her|our|their)\\s+(is|are|was|were)\\b/gi;
+  while((m=poss.exec(text))) add(m[0],possessive[m[1].toLowerCase()]+" "+m[2],"Use a possessive pronoun when the noun is omitted.",50);
+
+  // 17. Comparatives and superlatives.
+  first(/\\bmore\\s+(better|worse|faster|slower|bigger|smaller|stronger|weaker|higher|lower|easier|harder|older|younger|closer|farther)\\b/i,m=>add(m[0],m[1],"Do not combine more with an adjective that already has a comparative form.",80));
+  first(/\\bmost\\s+(best|worst|fastest|slowest|biggest|smallest|strongest|weakest|highest|lowest|easiest|hardest|oldest|youngest)\\b/i,m=>add(m[0],m[1],"Do not combine most with an adjective that already has a superlative form.",80));
+  first(/\\b(as)\\s+(better|worse|bigger|smaller|faster|slower)\\s+as\\b/i,m=>add(m[0],"as "+m[2].replace(/er$/,"")+" as","Use the base adjective in as...as comparisons.",55));
+
+  // 18. Common preposition errors.
+  const prepMap={
+    "interested on":"interested in","good in":"good at","good on":"good at","afraid from":"afraid of",
+    "depend of":"depend on","listen music":"listen to music","married with":"married to",
+    "different than":"different from","arrive to":"arrive at","discuss about":"discuss",
+    "enter into":"enter"
+  };
+  Object.keys(prepMap).forEach(bad=>{
+    const re=new RegExp("\\b"+bad.replace(/ /g,"\\s+")+"\\b","i");
+    const hit=text.match(re);
+    if(hit) add(hit[0],prepMap[bad],"Use the standard preposition or verb pattern here.",45);
+  });
+
+  // 19. Common verb-pattern errors.
+  first(/\\b(enjoy|avoid|finish|keep|mind)\\s+(to)\\s+([a-z]+)\\b/i,m=>add(m[0],m[1]+" "+m[3]+"ing","These verbs are followed by a gerund, not to + verb.",70));
+  first(/\\b(let|make)\\s+(me|him|her|us|them)\\s+to\\s+([a-z]+)\\b/i,m=>add(m[0],m[1]+" "+m[2]+" "+m[3],"Let/make + object is followed by the base verb.",70));
+
+  // 20. Common conjunction/connector errors.
+  first(/\\b(because|although|even though)\\s+but\\b/i,m=>add(m[0],m[1],"Do not normally use because/although together with but for the same contrast/cause.",60));
+  first(/\\b(despite|in spite of)\\s+(he|she|they|we|i)\\b/i,m=>add(m[0],m[1]+" "+({he:"his",she:"her",they:"their",we:"our",i:"my"}[m[2].toLowerCase()]||"the")+" presence","Despite/in spite of is followed by a noun phrase or gerund.",45));
+
+  // 21. Common double negatives in standard English.
+  first(/\\b(don't|doesn't|didn't|can't|couldn't|won't|wouldn't|never)\\s+([a-z]+)\\s+no\\b/i,m=>add(m[0],m[0].replace(/\\s+no\\b/i,""),"Avoid two negative markers when standard English needs one.",40));
+
+  // 22. Question word order.
+  const question=/^(where|when|why|how|what|who)\\s+(you|he|she|they|we|i)\\s+([a-z]+)\\??$/i;
+  first(question,m=>{
+    const s=m[2].toLowerCase();
+    const aux=/^(i|you|we|they)$/.test(s)?"do":"does";
+    if(/^(was|were|is|are|can|will|should|could|would|did|do|does|have|has|had)$/.test(m[3].toLowerCase())) return;
+    add(m[0],m[1]+" "+aux+" "+m[2]+" "+m[3]+"?","In a normal present-tense question, put the auxiliary before the subject.",75);
+  });
+
+  // 23. Subject-verb agreement for frequent plural/singular nouns.
+  const pluralNouns="people|children|men|women|students|friends|cars|books|things|questions|ideas|problems|days|years|jobs";
+  const singularWrong=new RegExp("\\b("+pluralNouns+")\\s+(is|was|has)\\b","gi");
+  while((m=singularWrong.exec(text))){
+    const good=m[2].toLowerCase()==="is"?"are":m[2].toLowerCase()==="was"?"were":"have";
+    add(m[0],m[1]+" "+good,"The plural subject needs the plural verb form.",90);
+  }
+  const singularNouns="person|child|man|woman|student|friend|car|book|thing|question|idea|problem|day|year|job";
+  const pluralWrong=new RegExp("\\b("+singularNouns+")\\s+(are|were|have)\\b","gi");
+  while((m=pluralWrong.exec(text))){
+    const good=m[2].toLowerCase()==="are"?"is":m[2].toLowerCase()==="were"?"was":"has";
+    add(m[0],m[1]+" "+good,"The singular subject needs the singular verb form.",90);
+  }
+
+  // 24. Common adjective/adverb confusion.
+  first(/\\b(run|drive|speak|work|sing|dance)\\s+(good|bad|slow|quick|easy)\\b/i,m=>{
+    const adverb={good:"well",bad:"badly",slow:"slowly",quick:"quickly",easy:"easily"}[m[2].toLowerCase()];
+    add(m[0],m[1]+" "+adverb,"Use an adverb to describe how an action is performed.",40);
+  });
+
+  // 25. Capitalize the first character of the sentence as a presentation correction.
+  if(text && /^[a-z]/.test(text))
+    add(text,text.charAt(0).toUpperCase()+text.slice(1),"Start a sentence with a capital letter.",20);
+
+  // Keep the most useful corrections first and remove exact duplicates.
+  const seen=new Set();
+  return fixes.filter(x=>{
+    const k=x.bad.toLowerCase()+"|"+x.good.toLowerCase();
+    if(seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).sort((a,b)=>b.priority-a.priority);
 }
 function grammarHTML(fixes){
   if(fixes.length)return "<div class='grammar-title'>📝 Grammar suggestion</div>"+fixes.map(x=>"❌ <strong>"+x.bad+"</strong> → <strong>"+x.good+"</strong>").join("<br>");
