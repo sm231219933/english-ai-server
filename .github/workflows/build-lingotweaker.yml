@@ -38,7 +38,7 @@ jobs:
           cargo build --release -p lt-data --bin pack_data
           mkdir -p ../vendor/lingotweaker/packs
           target/release/pack_data data en ../vendor/lingotweaker/packs/en.pack
-          wasm-pack build crates/lt-wasm --target web --out-dir ../../vendor/lingotweaker/pkg
+          wasm-pack build crates/lt-wasm --target web --out-dir ../../../vendor/lingotweaker/pkg
 
       - name: Remove generated metadata we do not need
         run: |
