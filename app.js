@@ -368,6 +368,33 @@ let grammarLastCorrection="";
 let grammarPendingText="";
 let grammarRecognition=null;
 
+function resetGrammarSpeech(){
+  try{if(grammarRecognition)grammarRecognition.stop()}catch(e){}
+  grammarRecognition=null;
+  grammarPendingText="";
+  grammarLastCorrection="";
+  $("grammarLive").className="heard hidden";
+  $("grammarLiveText").textContent="";
+  $("grammarHeard").className="heard hidden";
+  $("grammarHeard").innerHTML="";
+  $("grammarResult").className="feedback hidden";
+  $("grammarResult").innerHTML="";
+  $("grammarListen").disabled=true;
+  $("grammarSend").disabled=true;
+  $("grammarRespeak").disabled=false;
+  $("grammarStatus").textContent="Ready. Tap Respeak and say your sentence again.";
+}
+
+function finishGrammarCapture(){
+  $("grammarSpeak").disabled=false;
+  $("grammarSpeak").textContent="🎤 Speak a sentence";
+  $("grammarRespeak").disabled=false;
+  $("grammarSend").disabled=grammarPendingText.split(/\s+/).filter(Boolean).length<2;
+  if(grammarPendingText.trim()){
+    $("grammarStatus").textContent="Speech captured. If it is wrong, tap Respeak. Otherwise tap Check sentence.";
+  }
+}
+
 function startGrammarTool(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){
@@ -403,21 +430,17 @@ function startGrammarTool(){
     const shown=(grammarPendingText+" "+interimText).trim();
     $("grammarLiveText").textContent=shown;
     send.disabled=grammarPendingText.split(/\s+/).filter(Boolean).length<2;
+    $("grammarRespeak").disabled=false;
   };
 
   rec.onerror=e=>{
-    $("grammarStatus").textContent="Could not hear you ("+e.error+"). You can try again.";
-    btn.disabled=false;
-    btn.textContent="🎤 Speak a sentence";
-    send.disabled=grammarPendingText.split(/\s+/).filter(Boolean).length<2;
+    $("grammarStatus").textContent="Could not hear you ("+e.error+"). Tap Respeak and try again.";
+    finishGrammarCapture();
   };
 
   rec.onend=()=>{
-    if(btn.disabled && grammarPendingText.trim()){
-      btn.disabled=false;
-      btn.textContent="🎤 Speak a sentence";
-      $("grammarStatus").textContent="Speech captured. Review it above, then tap Check sentence.";
-      send.disabled=grammarPendingText.split(/\s+/).filter(Boolean).length<2;
+    if(btn.disabled){
+      finishGrammarCapture();
     }
   };
 
@@ -456,7 +479,7 @@ async function showGrammarToolResult(raw){
   const heard=$("grammarHeard"),box=$("grammarResult");
   heard.className="heard";
   heard.innerHTML="<b>You said:</b> "+raw;
-  if(!result.text || result.text.split(/\\s+/).length<2){
+  if(!result.text || result.text.split(/\s+/).filter(Boolean).length<2){
     box.className="feedback bad";
     box.innerHTML="⚠️ Please say a complete sentence so I can check it.";
     return;
@@ -514,5 +537,6 @@ $("grammarSend").onclick=()=>{
   $("grammarStatus").textContent="Checking your sentence...";
   showGrammarToolResult(text);
   $("grammarSend").disabled=true;
+  $("grammarRespeak").disabled=false;
 };
 render();
