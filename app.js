@@ -30,8 +30,12 @@ function similarity(a,b){
 
 function commonGrammar(text){
   text=normalizeSpeechText(text);
+  const fixes=[];
+  const doubleComparative=text.match(/\bmore\s+(better|worse|faster|slower|bigger|smaller|stronger|weaker|higher|lower|easier|harder|older|younger|closer|farther)\b/i);
+  if(doubleComparative){
+    fixes.push({bad:doubleComparative[0],good:doubleComparative[1]});
+  }
   const rules=[
-    [/\bmore\s+(better|worse|faster|slower|bigger|smaller|stronger|weaker|higher|lower|easier|harder|older|younger|closer|farther)\b/i,"more better","better"],
     [/\b(i)\s+is\b/i,"I is","I am"],
     [/\b(i)\s+are\b/i,"I are","I am"],
     [/\b(i)\s+has\b/i,"I has","I have"],
@@ -53,7 +57,7 @@ function commonGrammar(text){
     [/\b(my father|my mother|my brother|my sister|the man|the woman|the boy|the girl)\s+have\b/i,"have","has"],
     [/\b(there)\s+is\s+[^.]*\b(people|things|cars|books)\b/i,"there is","there are"]
   ];
-  return rules.filter(r=>r[0].test(text)).map(r=>({bad:r[1],good:r[2]}));
+  return fixes.concat(rules.filter(r=>r[0].test(text)).map(r=>({bad:r[1],good:r[2]})));
 }
 
 function grammarHTML(fixes){
