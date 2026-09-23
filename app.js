@@ -159,12 +159,70 @@ function grammarCheckSentence(raw){
   });
   return {text,fixes,corrected};
 }
+let grammarLastCorrection="";
+let grammarPendingText="";
+let grammarRecognition=null;
+
+function startGrammarTool(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    $("grammarStatus").textContent="Speech recognition is not supported. Please use Chrome or Edge.";
+    return;
+  }
+  const btn=$("grammarSpeak");
+  const send=$("grammarSend");
+  btn.disabled=true;
+  send.disabled=true;
+  btn.textContent="🎤 Listening...";
+  $("grammarStatus").textContent="Listening... speak your sentence.";
+  $("grammarLive").className="heard";
+  $("grammarLiveText").textContent="";
+  grammarPendingText="";
+
+  const rec=new SR();
+  grammarRecognition=rec;
+  rec.lang="en-US";
+  rec.interimResults=true;
+  rec.continuous=true;
+  rec.maxAlternatives=1;
+
+  rec.onresult=e=>{
+    let finalText="";
+    let interimText="";
+    for(let i=0;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal) finalText+=t+" ";
+      else interimText+=t+" ";
+    }
+    if(finalText.trim()) grammarPendingText=(grammarPendingText+" "+finalText).trim();
+    const shown=(grammarPendingText+" "+interimText).trim();
+    $("grammarLiveText").textContent=shown;
+    send.disabled=grammarPendingText.split(/\s+/).filter(Boolean).length<2;
+  };
+
+  rec.onerror=e=>{
+    $("grammarStatus").textContent="Could not hear you ("+e.error+"). You can try again.";
+    btn.disabled=false;
+    btn.textContent="🎤 Speak a sentence";
+    send.disabled=grammarPendingText.split(/\s+/).filter(Boolean).length<2;
+  };
+
+  rec.onend=()=>{
+    if(btn.disabled && grammarPendingText.trim()){
+      btn.disabled=false;
+      btn.textContent="🎤 Speak a sentence";
+      $("grammarStatus").textContent="Speech captured. Review it above, then tap Check sentence.";
+      send.disabled=grammarPendingText.split(/\s+/).filter(Boolean).length<2;
+    }
+  };
+
+  rec.start();
+}
 
 async function harperCheckSentence(text){
-  if(!window.harperLinter){
-    return {available:false,lints:[]};
-  }
+  if(!window.harperLinter)return {available:false,lints:[]};
   try{
+    if(window.harperReady) await window.harperReady;
     const lints=await window.harperLinter.lint(text);
     return {available:true,lints};
   }catch(e){
@@ -182,9 +240,7 @@ function harperResult(text,lints){
     const wrong=text.slice(span.start,span.end);
     const good=suggestion?suggestion.get_replacement_text():"";
     findings.push({wrong,good,message:lint.message()});
-    if(suggestion){
-      corrected=corrected.slice(0,span.start)+good+corrected.slice(span.end);
-    }
+    if(suggestion) corrected=corrected.slice(0,span.start)+good+corrected.slice(span.end);
   });
   findings.reverse();
   return {corrected,findings};
@@ -195,39 +251,34 @@ async function showGrammarToolResult(raw){
   const heard=$("grammarHeard"),box=$("grammarResult");
   heard.className="heard";
   heard.innerHTML="<b>You said:</b> "+raw;
-  if(!result.text || result.text.split(/\\s+/).length<2){
+  if(!result.text || result.text.split(/\s+/).length<2){
     box.className="feedback bad";
     box.innerHTML="⚠️ Please say a complete sentence so I can check it.";
     return;
   }
-
   box.className="feedback";
   box.innerHTML="🔎 Checking grammar...";
-  $("grammarStatus").textContent="Harper is checking your sentence locally...";
+  $("grammarStatus").textContent="Checking your sentence locally...";
 
   const h=await harperCheckSentence(result.text);
-
   if(h.available){
     const checked=harperResult(result.text,h.lints);
     grammarLastCorrection=checked.corrected;
     $("grammarListen").disabled=false;
-
     if(checked.findings.length){
       box.className="feedback bad";
-      box.innerHTML="<div class='grammar-title'>❌ Mistake found</div>"+
-        "<div class='correction'><b>Better sentence:</b> "+checked.corrected+"</div>"+
+      box.innerHTML="<div class='grammar-title'>❌ Mistake found</div><div class='correction'><b>Better sentence:</b> "+checked.corrected+"</div>"+
         checked.findings.map(x=>"<div>❌ <strong>"+x.wrong+"</strong> → <strong>"+(x.good||"remove")+"</strong><br><small>"+x.message+"</small></div>").join("<br>")+
         "<div class='explanation'>Checked locally by Harper. Your sentence is not sent to a grammar server.</div>";
-      $("grammarStatus").textContent="Harper found grammar feedback.";
+      $("grammarStatus").textContent="Grammar feedback found.";
     }else{
       box.className="feedback good";
       box.innerHTML="<div class='grammar-title'>✅ Looks good</div><div class='correction'>"+result.text+"</div><div class='explanation'>Harper did not detect a grammar or spelling issue.</div>";
-      $("grammarStatus").textContent="Harper found no issue in this sentence.";
+      $("grammarStatus").textContent="No issue detected.";
     }
     return;
   }
 
-  // Local fallback if Harper cannot load.
   grammarLastCorrection=result.corrected;
   $("grammarListen").disabled=false;
   if(result.fixes.length){
@@ -235,11 +286,11 @@ async function showGrammarToolResult(raw){
     box.innerHTML="<div class='grammar-title'>❌ Mistake found</div><div class='correction'><b>Better sentence:</b> "+result.corrected+"</div>"+
       result.fixes.map(x=>"<div>❌ <strong>"+x.bad+"</strong> → <strong>"+x.good+"</strong></div>").join("")+
       "<div class='explanation'>Harper could not load, so the local fallback rules were used.</div>";
-    $("grammarStatus").textContent="Harper unavailable. Local grammar rules were used.";
+    $("grammarStatus").textContent="Basic local grammar check completed.";
   }else{
     box.className="feedback good";
-    box.innerHTML="<div class='grammar-title'>ℹ️ Basic check</div><div class='correction'>"+result.text+"</div><div class='explanation'>Harper could not load, so only the local fallback rules were used.</div>";
-    $("grammarStatus").textContent="Harper unavailable. Basic local check completed.";
+    box.innerHTML="<div class='grammar-title'>ℹ️ Basic check</div><div class='correction'>"+result.text+"</div><div class='explanation'>Harper could not load, so only the basic local rules were used.</div>";
+    $("grammarStatus").textContent="Basic local check completed.";
   }
 }
 
