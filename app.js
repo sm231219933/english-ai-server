@@ -361,9 +361,9 @@ function grammarCheckSentence(raw){
   // never reported as "Please say a complete sentence".
   const source=String(raw||"").trim();
   let text=normalizeSpeechText(source);
-  const sourceWords=source.split(/\\s+/).filter(Boolean);
-  if(text.split(/\\s+/).filter(Boolean).length<2 && sourceWords.length>=2){
-    text=source.toLowerCase().replace(/[^a-z0-9\\s']/g," ").replace(/\\s+/g," ").trim();
+  const sourceWords=source.split(/\s+/).filter(Boolean);
+  if(text.split(/\s+/).filter(Boolean).length<2 && sourceWords.length>=2){
+    text=source.toLowerCase().replace(/[^a-z0-9\s']/g," ").replace(/\s+/g," ").trim();
   }
   const fixes=commonGrammar(text);
   let corrected=text;
@@ -536,7 +536,7 @@ async function showGrammarToolResult(raw){
   const heard=$("grammarHeard"),box=$("grammarResult");
   heard.className="heard";
   heard.innerHTML="<b>You said:</b> "+raw;
-  if(!result.text || result.text.split(/\\s+/).filter(Boolean).length<2){
+  if(!result.text || result.text.split(/\s+/).filter(Boolean).length<2){
     box.className="feedback bad";
     box.innerHTML="⚠️ Please say a complete sentence so I can check it.";
     return;
