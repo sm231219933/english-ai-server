@@ -17,6 +17,7 @@
   let loadingASR = null;
   let loadingTTS = null;
   let speaking = false;
+  let listenButtonRef = null;
 
   function setStatus(message) {
     const el = $("grammarStatus");
@@ -163,7 +164,7 @@
         }
       };
       mediaRecorder.start();
-      setStatus("🎤 Listening... Speak your complete sentence, then tap Stop.");
+      setStatus("🎤 Listening... Speak your complete sentence. Tap Stop & transcribe when finished.");
     });
   }
 
@@ -204,8 +205,9 @@
       speak.disabled = listening;
       speak.textContent = listening ? "⏹ Stop & transcribe" : "🎤 Speak a sentence";
     }
-    if (respeak) respeak.disabled = listening;
+    if (respeak) respeak.disabled = false;
     if (send && listening) send.disabled = true;
+    if (listenButtonRef) listenButtonRef.disabled = listening;
   }
 
   function resetUI() {
@@ -239,6 +241,7 @@
       }
 
       window.grammarPendingText = text;
+      window.grammarLastCorrection = text;
       const heard = $("grammarHeard");
       if (heard) {
         heard.className = "heard";
@@ -291,6 +294,7 @@
   if (listenButton) listenButton.onclick = handleHearCorrection;
   if (sendButton) sendButton.onclick = async () => {
     const text = (window.grammarPendingText || "").trim();
+    if (speaking) { setStatus("Tap Stop & transcribe first."); return; }
     if (!text || !window.showGrammarToolResult) {
       setStatus("Speak a complete sentence first.");
       return;
