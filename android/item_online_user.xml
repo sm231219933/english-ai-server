@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:paddingHorizontal="8dp">
+
+    <FrameLayout
+        android:layout_width="56dp"
+        android:layout_height="56dp">
+
+        <View
+            android:id="@+id/userAvatarBg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_home_header"
+            android:alpha="0.2"/>
+
+        <TextView
+            android:id="@+id/userInitial"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="A"
+            android:textColor="#2563EB"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_home_header"
+            android:backgroundTint="#10B981" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/userShortName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="User"
+        android:textColor="#1E293B"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+</LinearLayout>

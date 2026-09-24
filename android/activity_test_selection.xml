@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F1F5F9"
+    android:padding="16dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="#FFFFFF">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:id="@+id/testSelTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Practice Tests 📝"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="#2563EB"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Level Selection -->
+            <LinearLayout
+                android:id="@+id/levelButtonsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <Button
+                    android:id="@+id/btnLevelBeg"
+                    android:layout_width="match_parent"
+                    android:layout_height="70dp"
+                    android:text="BEGINNER (400 Words)"
+                    android:backgroundTint="#4CAF50"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"/>
+
+                <Button
+                    android:id="@+id/btnLevelAdv"
+                    android:layout_width="match_parent"
+                    android:layout_height="70dp"
+                    android:text="ADVANCED (750+ Words)"
+                    android:backgroundTint="#E91E63"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"/>
+
+            </LinearLayout>
+
+            <!-- Test List (Visible after level selection) -->
+            <TextView
+                android:id="@+id/testListLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select a Test"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#64748B"
+                android:visibility="gone"
+                android:layout_marginBottom="12dp"/>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/testListRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:visibility="gone" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

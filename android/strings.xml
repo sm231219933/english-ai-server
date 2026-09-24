@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">Tinkl - English Learning App</string>
+    <string name="hello_user">Hello %1$s</string>
+    <string name="welcome_guest">Welcome Guest 👋</string>
+    <string name="login_required">Login Required</string>
+    <string name="buddy_call_login_msg">Buddy call ke liye login zaroori hai!</string>
+    <string name="starting_buddy_call">Starting Buddy Call...</string>
+    <string name="connecting_unlimited">Connecting to Buddy (Unlimited)...</string>
+    <string name="pro_mode">Pro Mode Active</string>
+    <string name="guest_plan">Guest Plan (%1$d/%2$d)</string>
+    <string name="listening">Listening...</string>
+    <string name="processing">Processing...</string>
+    <string name="voice_error">Error: %1$s</string>
+    <string name="ai_default_response">Sorry, I couldn\'t understand.</string>
+    <string name="error_prefix">Error: %1$s</string>
+    <string name="login_title">Login with Phone</string>
+    <string name="enter_phone">Enter Phone Number</string>
+    <string name="send_otp">Send OTP</string>
+    <string name="enter_otp">Enter 6-digit OTP</string>
+    <string name="verify_otp">Verify OTP</string>
+    <string name="otp_sent">OTP Sent successfully</string>
+    <string name="login_success">Login Successful!</string>
+    <string name="invalid_otp">Invalid OTP: %1$s</string>
+    <string name="phone_error">Please enter a valid phone number</string>
+    <string name="otp_error">Please enter 6-digit OTP</string>
+    <string name="verification_failed">Verification Failed: %1$s</string>
+    <string name="back">Back</string>
+
+    <!-- AdMob Unit IDs -->
+    <string name="admob_app_id">ca-app-pub-8295458537229908~6407423372</string>
+    <string name="admob_banner_id">ca-app-pub-8295458537229908/6783927972</string>
+    <string name="admob_rewarded_id">ca-app-pub-8295458537229908/8482922375</string>
+    <string name="admob_interstitial_id">ca-app-pub-8295458537229908/8893985912</string>
+</resources>

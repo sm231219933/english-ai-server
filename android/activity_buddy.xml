@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F8FAFC">
+
+    <View
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:background="@drawable/bg_home_header"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/buddyTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="24dp"
+        android:text="Find Buddy 👥"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/limitContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="24dp"
+        android:orientation="vertical"
+        android:gravity="end"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/buddyTitle"
+        app:layout_constraintBottom_toBottomOf="@id/buddyTitle">
+
+        <TextView
+            android:id="@+id/limitIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Daily Limit: 5/5"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:background="#44000000"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="4dp" />
+    </LinearLayout>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="80dp"
+        app:cardCornerRadius="40dp"
+        app:cardElevation="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:id="@+id/modeDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Choose your preference to find a random partner for English practice."
+                android:textColor="#64748B"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:layout_marginBottom="12dp" />
+
+            <!-- ONLINE USERS SECTION (PROFESSIONAL BADGE) -->
+            <LinearLayout
+                android:id="@+id/onlineUsersLayout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="20dp"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="6dp"
+                android:background="@drawable/bg_gender_selector"
+                android:backgroundTint="#ECFDF5"
+                android:visibility="visible">
+
+                <TextView
+                    android:id="@+id/onlineDot"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🟢"
+                    android:textSize="8sp"
+                    android:layout_marginEnd="6dp" />
+
+                <TextView
+                    android:id="@+id/liveCountText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Active Learners Online"
+                    android:textColor="#059669"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- GENDER SELECTION (AVATARS) -->
+            <RadioGroup
+                android:id="@+id/matchGenderGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginBottom="16dp">
+
+                <RadioButton
+                    android:id="@+id/rbAny"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:button="@null"
+                    android:background="@drawable/gender_option_selector"
+                    android:drawableTop="@drawable/ic_gender_any"
+                    android:drawablePadding="0dp"
+                    android:padding="16dp"
+                    android:checked="true"
+                    android:text="Any"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:textColor="#2563EB"
+                    android:gravity="center" />
+
+                <RadioButton
+                    android:id="@+id/rbMale"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_marginStart="16dp"
+                    android:button="@null"
+                    android:background="@drawable/gender_option_selector"
+                    android:drawableTop="@drawable/ic_gender_male"
+                    android:drawablePadding="0dp"
+                    android:padding="10dp"
+                    android:text="Male"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:textColor="#2563EB"
+                    android:gravity="center" />
+
+                <RadioButton
+                    android:id="@+id/rbFemale"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_marginStart="16dp"
+                    android:button="@null"
+                    android:background="@drawable/gender_option_selector"
+                    android:drawableTop="@drawable/ic_gender_female"
+                    android:drawablePadding="0dp"
+                    android:padding="10dp"
+                    android:text="Female"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:textColor="#EA4335"
+                    android:gravity="center" />
+            </RadioGroup>
+
+            <!-- BIG AD SLOT (MEDIUM RECTANGLE) -->
+            <FrameLayout
+                android:id="@+id/matchAdSlot"
+                android:layout_width="match_parent"
+                android:layout_height="250dp"
+                android:layout_marginBottom="16dp"
+                android:background="#F1F5F9">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="Ad loading..."
+                    android:textColor="#94A3B8"
+                    android:textSize="12sp" />
+            </FrameLayout>
+
+            <Button
+                android:id="@+id/btnGetRewardCalls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🎁 Get 2 calls by watching rewarded ad"
+                android:backgroundTint="#10B981"
+                android:textColor="#FFFFFF"
+                android:visibility="gone"
+                android:layout_marginBottom="8dp"
+                app:cornerRadius="16dp" />
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/startMatchBtn"
+                android:layout_width="match_parent"
+                android:layout_height="70dp"
+                app:cardBackgroundColor="#2563EB"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="4dp">
+                <TextView
+                    android:id="@+id/startMatchText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="⚡ START MATCHING"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </androidx.cardview.widget.CardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Be respectful. Nudity or abuse = Lifetime Ban.\n• Minimum 1 minute conversation required."
+                android:textColor="#475569"
+                android:textSize="11sp"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:lineSpacingExtra="2dp" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

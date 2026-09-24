@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F1F5F9"
+    android:padding="16dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="#FFFFFF"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/profAdContainer">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Edit Profile 👤"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:textColor="#2563EB"
+                    android:layout_marginBottom="32dp" />
+
+                <EditText
+                    android:id="@+id/profName"
+                    android:layout_width="match_parent"
+                    android:layout_height="55dp"
+                    android:hint="Full Name"
+                    android:background="@drawable/bg_input_field"
+                    android:paddingHorizontal="16dp"
+                    android:inputType="textPersonName"
+                    android:layout_marginBottom="16dp" />
+
+                <EditText
+                    android:id="@+id/profAge"
+                    android:layout_width="match_parent"
+                    android:layout_height="55dp"
+                    android:hint="Age"
+                    android:background="@drawable/bg_input_field"
+                    android:paddingHorizontal="16dp"
+                    android:inputType="number"
+                    android:layout_marginBottom="24dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select Gender"
+                    android:textStyle="bold"
+                    android:textColor="#1E293B"
+                    android:layout_marginBottom="8dp" />
+
+                <RadioGroup
+                    android:id="@+id/profGenderGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="32dp">
+                    <RadioButton
+                        android:id="@+id/profMale"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Male 👦"
+                        android:buttonTint="#2563EB" />
+                    <RadioButton
+                        android:id="@+id/profFemale"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Female 👧"
+                        android:buttonTint="#2563EB"
+                        android:layout_marginStart="20dp"/>
+                </RadioGroup>
+
+                <Button
+                    android:id="@+id/saveProfileBtn"
+                    android:layout_width="match_parent"
+                    android:layout_height="55dp"
+                    android:text="SAVE CHANGES"
+                    android:backgroundTint="#2563EB"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/logoutButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="55dp"
+                    android:text="LOGOUT"
+                    android:backgroundTint="#EF4444"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/deleteAccountBtn"
+                    android:layout_width="match_parent"
+                    android:layout_height="55dp"
+                    android:text="DELETE ACCOUNT"
+                    android:backgroundTint="#B91C1C"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="20dp" />
+
+                <Button
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Back to Dashboard"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:onClick="finishProfile" />
+
+            </LinearLayout>
+        </ScrollView>
+    </androidx.cardview.widget.CardView>
+
+    <LinearLayout
+        android:id="@+id/profAdContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginTop="16dp"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
