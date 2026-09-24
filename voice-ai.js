@@ -202,11 +202,11 @@
     const respeak = $("grammarRespeak");
     const send = $("grammarSend");
     if (speak) {
-      speak.disabled = listening;
+      speak.disabled = false;
       speak.textContent = listening ? "⏹ Stop & transcribe" : "🎤 Speak a sentence";
     }
     if (respeak) respeak.disabled = false;
-    if (send && listening) send.disabled = true;
+    if (send) send.disabled = listening || !(window.grammarPendingText || "").trim();
     if (listenButtonRef) listenButtonRef.disabled = listening;
   }
 
