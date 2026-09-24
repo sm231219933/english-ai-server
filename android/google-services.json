@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "2925383298",
+    "firebase_url": "https://englishtrackingai-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "englishtrackingai",
+    "storage_bucket": "englishtrackingai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:2925383298:android:676a5bfc4bc3043bf6ee9b",
+        "android_client_info": {
+          "package_name": "com.smnm.englishtrackingai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1suufM1hw2jqVzjx_DyVktpiAwZ7xcEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
