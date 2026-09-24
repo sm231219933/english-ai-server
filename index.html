@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>English Speaking Practice</title><meta name="description" content="Free browser-based English speaking practice.">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css"><style>.android-hub{border:2px solid #e7e4ff}.android-hub h2{margin:8px 0 10px}.android-hub p{color:#667085;line-height:1.6;max-width:760px}.feature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:20px}.feature-tile{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;text-align:left;background:#f8f9fc;border:1px solid #e7eaf0;padding:16px}.feature-tile strong{font-size:15px}.feature-tile span{grid-column:2;color:#667085;font-size:12px;font-weight:500;margin-top:3px}@media(max-width:650px){.feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>
 </head>
 <body>
 <header class="top"><div class="brand">English Speaking AI</div><span class="badge">100% browser-based</span></header>
 <main>
 <section class="hero"><p class="eyebrow">SPEAK • LISTEN • IMPROVE</p><h1>Learn English by <span>speaking</span>, not memorising.</h1><p class="sub">Practice real situations. Listen, speak, get feedback, and try again.</p><div class="privacy">🔒 No AWS server is used by this speaking page.</div></section>
-<section class="card">
+<section class="card android-hub"><div class="label">ANDROID APP FEATURES</div><h2>Practice like the Android app</h2><p>Lessons, vocabulary, tests and buddy practice are being brought into the web version while keeping your existing speaking tools.</p><div class="feature-grid"><button class="feature-tile" data-feature="Lessons">📚<strong>Lessons</strong><span>Learn step by step</span></button><button class="feature-tile" data-feature="Vocabulary">📖<strong>Vocabulary</strong><span>Build your word power</span></button><button class="feature-tile" data-feature="Tests">📝<strong>Tests</strong><span>Check your learning</span></button><button class="feature-tile" data-feature="Buddy Chat">💬<strong>Buddy Chat</strong><span>Practice with a buddy</span></button><button class="feature-tile" data-feature="Audio Practice">🎧<strong>Audio Practice</strong><span>Speak and listen</span></button><button class="feature-tile" data-feature="Video Practice">📹<strong>Video Practice</strong><span>Practice face to face</span></button></div><div id="androidFeatureStatus" class="status">Choose a learning area above.</div></section>\n<section class="card">
 <div class="row between"><div><label for="scenario">Practice scenario</label><select id="scenario"><option value="restaurant">Restaurant</option><option value="daily">Daily conversation</option><option value="interview">Job interview</option><option value="travel">Travel</option></select></div><div class="score" id="score">0/0</div></div>
 <div class="progress"><div id="bar"></div></div>
 <div class="prompt"><div class="label">LISTEN & SPEAK</div><h2 id="promptText"></h2><p id="hint"></p></div>
@@ -17,10 +17,10 @@
 <div id="status" class="status">Ready.</div><div id="heard" class="heard hidden"></div><div id="feedback" class="feedback hidden"></div>
 <div class="actions"><button class="secondary" id="retry">↻ Try again</button><button class="primary" id="next">Next →</button></div>
 </section>
-<section class="card grammar-tool"><div class="label">GRAMMAR SPEAKING TOOL</div><h2>Speak a sentence. Find your mistake.</h2><p>Do not type anything. Tap the microphone, say one sentence, and get the correction with a simple explanation.</p><div class="controls"><button class="primary" id="grammarSpeak">🎤 Speak a sentence</button><button class="secondary" id="grammarListen" disabled>🔊 Hear correction</button></div><div id="grammarStatus" class="status">Ready. Speak naturally.</div>
+<section class="card grammar-tool"><div class="label">SENTENCE CORRECTION</div><h2>Speak a sentence. Find your mistake.</h2><p>Do not type anything. Tap the microphone, say one sentence, and get the correction with a simple explanation.</p><div class="controls"><button class="primary" id="grammarSpeak">🎤 Speak a sentence</button><button class="secondary" id="grammarListen" disabled>🔊 Hear correction</button></div><div id="grammarStatus" class="status">Ready. Speak naturally.</div>
 <div id="grammarLive" class="heard hidden"><b>Live speech:</b> <span id="grammarLiveText"></span></div>
 <div class="controls"><button class="primary" id="grammarSend" disabled>➤ Check sentence</button><button class="secondary" id="grammarRespeak">🔄 Respeak</button></div>
-<div id="grammarHeard" class="heard hidden"></div><div id="grammarResult" class="feedback hidden"></div></section><section class="card"><div class="label">FREE SPEAKING</div><h2>60-second challenge</h2><p>Speak about the topic without stopping. Your browser turns speech into text and the practice engine checks common mistakes.</p><div class="topic">Tell me about your daily routine.</div><div class="controls"><button class="primary" id="freeSpeak">🎤 Start 60-second challenge</button></div><div class="timer" id="freeTimer">60</div><div class="transcript" id="freeText"></div><div id="freeFeedback" class="feedback hidden"></div></section>
+<div id="grammarHeard" class="heard hidden"></div><div id="grammarResult" class="feedback hidden"></div></section><section class="card"><div class="label">60-SECOND CHALLENGE</div><h2>Speak for 60 seconds</h2><p>Speak about the topic without stopping. Your browser turns speech into text and the practice engine checks common mistakes.</p><div class="topic">Tell me about your daily routine.</div><div class="controls"><button class="primary" id="freeSpeak">🎤 Start 60-second challenge</button></div><div class="timer" id="freeTimer">60</div><div class="transcript" id="freeText"></div><div id="freeFeedback" class="feedback hidden"></div></section>
 </main><script type="module">
 /* Primary grammar engine: LingoTweaker, a LanguageTool-derived Rust/WASM port.
    The engine and English data are generated into the repository by GitHub Actions,
@@ -45,4 +45,4 @@
 })();
 </script>
 <script src="app.js?v=20260923-12"></script>\n<script type="module" src="voice-ai.js?v=20260924-1"></script>
-</body></html>
+<script>document.querySelectorAll(".feature-tile").forEach(btn=>btn.addEventListener("click",()=>{const s=document.getElementById("androidFeatureStatus");if(s)s.textContent=btn.dataset.feature+" selected. The Android feature is being matched in the web version."}));</script></body></html>
