@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- CROWN -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M15,10l4,4l5,-8l5,8l4,-4l-2,8h-14z"/>
+    <!-- MALE FACE -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M24,20c4.42,0 8,-3.58 8,-8s-3.58,-8 -8,-8s-8,3.58 -8,8S19.58,20 24,20z"/>
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M24,24c-7.33,0 -22,3.67 -22,11v5h44v-5C46,27.67 31.33,24 24,24z"/>
+</vector>
