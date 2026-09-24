@@ -263,7 +263,7 @@
   }
 
   async function handleHearCorrection() {
-    const correction = window.grammarLastCorrection || window.grammarPendingText;
+    const correction = window.kokoroCorrection || window.grammarPendingText;
     if (!correction) {
       setStatus("Check a sentence first.");
       return;
@@ -285,9 +285,30 @@
   const speakButton = $("grammarSpeak");
   const respeakButton = $("grammarRespeak");
   const listenButton = $("grammarListen");
+  const sendButton = $("grammarSend");
   if (speakButton) speakButton.onclick = handleWhisperSpeak;
   if (respeakButton) respeakButton.onclick = handleRespeak;
   if (listenButton) listenButton.onclick = handleHearCorrection;
+  if (sendButton) sendButton.onclick = async () => {
+    const text = (window.grammarPendingText || "").trim();
+    if (!text || !window.showGrammarToolResult) {
+      setStatus("Speak a complete sentence first.");
+      return;
+    }
+    try {
+      sendButton.disabled = true;
+      setStatus("Checking your sentence locally...");
+      await window.showGrammarToolResult(text);
+      const correction = $("grammarResult")?.querySelector(".correction")?.textContent || "";
+      window.kokoroCorrection = correction.replace(/^Better sentence:\s*/i, "").trim() || text;
+      if (listenButton) listenButton.disabled = false;
+    } catch (e) {
+      console.error("Grammar check bridge failed.", e);
+      setStatus("Grammar check failed. Please try again.");
+    } finally {
+      sendButton.disabled = false;
+    }
+  };
 
   window.localSpeechAI = {
     transcribeBlob,
