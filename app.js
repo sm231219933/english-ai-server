@@ -14,9 +14,9 @@ function render(){
  const t=topic(), list=t? t.sentences.filter(s=>personFilter==="All"||s.personTag===personFilter):[],s=currentSentence();
  $("topicDescription").textContent=t?.description||"";
  $("topicMeta").textContent=t?`${t.category} · ${t.level} · ${list.length} sentences`:"";
- $("promptText").textContent=s?"💡 Hint: "+makeSentenceHint(s.expectedText):"";
+ $("promptText").textContent="";
  $("promptHindi").textContent=s?.promptHindi||"";
- $("expectedText").textContent=s?makeSentenceHint(s.expectedText):"";
+ $("expectedText").textContent=s?s.expectedText:"";
  $("expectedWrap").className="expected hidden";
  $("personFilter").value=personFilter;
  $("sentenceNo").textContent=list.length?`Sentence ${index+1} of ${list.length}`:"";
@@ -37,7 +37,7 @@ function makeSentenceHint(text){
     return keepWord?part:"___";
   }).join("");
 }
-function revealExpected(){$("expectedWrap").className="expected";$("expectedText").textContent=makeSentenceHint(currentSentence()?.expectedText||"")}
+function revealExpected(){$("expectedWrap").className="expected";$("expectedText").textContent=currentSentence()?.expectedText||""}
 function startRecognition(){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){$("status").textContent="Speech recognition is not supported. Try Chrome or Edge.";return}
