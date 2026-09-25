@@ -59,7 +59,9 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun moveToHome() {
-        startActivity(Intent(this, HomeActivity::class.java))
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        val target = if (user != null) HomeActivity::class.java else LoginActivity::class.java
+        startActivity(Intent(this, target))
         finish()
     }
 }

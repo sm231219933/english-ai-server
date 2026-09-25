@@ -24,4 +24,78 @@ q("videoCamera").onclick=()=>{callState.camera=!callState.camera;callState.strea
 q("audioSpeaker").onclick=()=>{q("remoteAudio").volume=q("remoteAudio").volume?0:1};
 q("audioReport").onclick=q("audioReport2").onclick=q("videoReport").onclick=()=>alert("User Reported!");
 
-let register=false;function authUI(){document.querySelector(".authCard").classList.toggle("registerMode",register);q("authTitle").textContent=register?"Create your account":"Welcome back";q("authSubtitle").textContent=register?"Start tracking your English progress.":"Login to continue.";q("authAction").textContent=register?"Create Account":"Login";q("authToggle").textContent=register?"Already have an account? Login":"Create an account"}q("authToggle").onclick=()=>{register=!register;authUI()};authUI();const APIKEY="AIzaSyD1suufM1hw2jqVzjx_DyVktpiAwZ7xcEQ";async function authCall(path,body){const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:"+path+"?key="+APIKEY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error?.message||"Authentication failed");return d}async function loadFirebaseProfile(uid,idToken){const r=await fetch("https://firestore.googleapis.com/v1/projects/englishtrackingai/databases/(default)/documents/users/"+encodeURIComponent(uid),{headers:{Authorization:"Bearer "+idToken}});if(r.status===404)return null;const d=await r.json();if(!r.ok)throw Error("Firebase profile check failed");const f=d.fields||{},v=k=>f[k]?.stringValue||"";return{uid,name:v("name")||"Learner",email:v("email"),age:v("age"),gender:v("gender")||"Any",level:v("level")||"Beginner",plan:v("plan")||"Free",isPaid:f.isPaid?.booleanValue||false}}function loadUser(){const u=JSON.parse(localStorage.getItem("englishTrackingUser")||"null");if(!u)return;const name=u.name||"Learner";q("homeGreeting").textContent="Hello "+name+" 👋";q("profileName").textContent=name;q("profileEmail").textContent=u.email||"";q("profileInitial").textContent=name[0].toUpperCase();q("profileNameInput").value=name;q("profileAgeInput").value=u.age||"";q("profileGenderInput").value=u.gender||"";q("topLogin").hidden=true;q("topProfile").hidden=false;q("homePlan").textContent=u.plan||"Free";q("topLevel").textContent="Level: "+(u.level||"Beginner");q("homeLevel").textContent=u.level||"Beginner"}q("authAction").onclick=async()=>{try{q("authStatus").textContent="Checking Firebase…";const email=q("authEmail").value.trim(),password=q("authPassword").value;if(!email||!password)throw Error("Enter email and password.");if(register){const name=q("authName").value.trim();if(!name)throw Error("Enter your name.");const d=await authCall("signUp",{email,password,returnSecureToken:true});localStorage.setItem("englishTrackingUser",JSON.stringify({uid:d.localId,idToken:d.idToken,email:d.email||email,name,age:"",gender:"Any",level:"Beginner",plan:"Free"}));}else{const d=await authCall("signInWithPassword",{email,password,returnSecureToken:true});const profile=await loadFirebaseProfile(d.localId,d.idToken);if(!profile)throw Error("Firebase account found, but your Android profile is missing.");localStorage.setItem("englishTrackingUser",JSON.stringify({...profile,idToken:d.idToken,email:d.email||email}));}loadUser();q("authStatus").textContent="Firebase authentication successful.";showPage("home")}catch(e){q("authStatus").textContent=e.message||"Login failed."}};q("saveProfile").onclick=()=>{const u=JSON.parse(localStorage.getItem("englishTrackingUser")||"{}");u.name=q("profileNameInput").value.trim()||"Learner";u.age=q("profileAgeInput").value;u.gender=q("profileGenderInput").value;localStorage.setItem("englishTrackingUser",JSON.stringify(u));loadUser();q("profileStatus").textContent="Profile saved on this browser."};q("logoutBtn").onclick=()=>{localStorage.removeItem("englishTrackingUser");location.reload()};loadUser();renderLessons();renderVocab();renderTests();
+let register=false;
+function getStoredUser(){try{return JSON.parse(localStorage.getItem("englishTrackingUser")||"null")}catch(e){return null}}
+function authUI(){
+  document.querySelector(".authCard").classList.toggle("registerMode",register);
+  q("authTitle").textContent=register?"Create your account":"Welcome back";
+  q("authSubtitle").textContent=register?"Start tracking your English progress.":"Login to continue.";
+  q("authAction").textContent=register?"Create Account":"Login";
+  q("authToggle").textContent=register?"Already have an account? Login":"Create an account";
+}
+q("authToggle").onclick=()=>{register=!register;authUI()};
+const APIKEY="AIzaSyD1suufM1hw2jqVzjx_DyVktpiAwZ7xcEQ",FIREBASE_PROJECT="englishtrackingai";
+async function authCall(path,body){
+  const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:"+path+"?key="+APIKEY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const d=await r.json();if(!r.ok)throw Error(d.error?.message||"Authentication failed");return d;
+}
+function firestoreValue(value){return typeof value==="boolean"?{booleanValue:value}:{stringValue:String(value??"")}}
+async function createFirebaseProfile(uid,idToken,profile){
+  const fields={};Object.entries(profile).forEach(([k,v])=>fields[k]=firestoreValue(v));
+  const r=await fetch("https://firestore.googleapis.com/v1/projects/"+FIREBASE_PROJECT+"/databases/(default)/documents/users/"+encodeURIComponent(uid),{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:"Bearer "+idToken},body:JSON.stringify({fields})});
+  const d=await r.json();if(!r.ok)throw Error(d.error?.message||"Firebase profile creation failed");return d;
+}
+async function updateFirebaseProfile(uid,idToken,updates){
+  const fields={};Object.entries(updates).forEach(([k,v])=>fields[k]=firestoreValue(v));
+  const mask=Object.keys(updates).map(k=>"updateMask.fieldPaths="+encodeURIComponent(k)).join("&");
+  const r=await fetch("https://firestore.googleapis.com/v1/projects/"+FIREBASE_PROJECT+"/databases/(default)/documents/users/"+encodeURIComponent(uid)+"?"+mask,{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:"Bearer "+idToken},body:JSON.stringify({fields})});
+  const d=await r.json();if(!r.ok)throw Error(d.error?.message||"Firebase profile update failed");return d;
+}
+async function loadFirebaseProfile(uid,idToken){
+  const r=await fetch("https://firestore.googleapis.com/v1/projects/"+FIREBASE_PROJECT+"/databases/(default)/documents/users/"+encodeURIComponent(uid),{headers:{Authorization:"Bearer "+idToken}});
+  if(r.status===404)return null;const d=await r.json();if(!r.ok)throw Error("Firebase profile check failed");
+  const f=d.fields||{},v=k=>f[k]?.stringValue||"";
+  return{uid,name:v("name")||"Learner",email:v("email"),age:v("age"),gender:v("gender")||"Any",level:v("level")||"Beginner",plan:v("plan")||"Free",isPaid:f.isPaid?.booleanValue||false};
+}
+function loadUser(){
+  const u=getStoredUser();
+  if(!u){
+    q("homeGreeting").textContent="Hello! 👋";q("profileName").textContent="Learner";q("profileEmail").textContent="Guest mode";q("profileInitial").textContent="L";
+    q("profileNameInput").value="";q("profileAgeInput").value="";q("profileGenderInput").value="";q("topLogin").hidden=false;q("topProfile").hidden=true;
+    q("topLevel").textContent="Level: Beginner";q("homeLevel").textContent="Beginner";return;
+  }
+  const name=u.name||"Learner";q("homeGreeting").textContent="Hello "+name+" 👋";q("profileName").textContent=name;q("profileEmail").textContent=u.email||"";
+  q("profileInitial").textContent=name[0].toUpperCase();q("profileNameInput").value=name;q("profileAgeInput").value=u.age||"";q("profileGenderInput").value=u.gender||"";
+  q("topLogin").hidden=true;q("topProfile").hidden=false;q("topLevel").textContent="Level: "+(u.level||"Beginner");q("homeLevel").textContent=u.level||"Beginner";
+}
+q("authAction").onclick=async()=>{
+  try{
+    q("authStatus").textContent="Checking Firebase…";const email=q("authEmail").value.trim(),password=q("authPassword").value;
+    if(!email||!password)throw Error("Enter email and password.");if(password.length<6)throw Error("Password must be at least 6 characters.");
+    if(register){
+      const name=q("authName").value.trim(),age=q("authAge").value.trim(),gender=q("authGender").value;
+      if(!name)throw Error("Enter your full name.");if(!age||Number(age)<13)throw Error("Enter a valid age (13+).");if(!gender)throw Error("Select your gender.");
+      if(!q("authTerms").checked)throw Error("Please accept Terms of Service.");
+      const d=await authCall("signUp",{email,password,returnSecureToken:true});
+      const profile={uid:d.localId,name,email:d.email||email,age,gender,level:"Beginner",isPaid:false,plan:"Free",messageCount:0};
+      try{await createFirebaseProfile(d.localId,d.idToken,profile)}catch(profileError){try{await authCall("delete",{idToken:d.idToken})}catch(e){}throw profileError}
+      localStorage.setItem("englishTrackingUser",JSON.stringify({...profile,idToken:d.idToken}));
+    }else{
+      const d=await authCall("signInWithPassword",{email,password,returnSecureToken:true});const profile=await loadFirebaseProfile(d.localId,d.idToken);
+      if(!profile)throw Error("Firebase account found, but your Android profile is missing.");
+      localStorage.setItem("englishTrackingUser",JSON.stringify({...profile,idToken:d.idToken,email:d.email||email}));
+    }
+    loadUser();q("authStatus").textContent="Firebase authentication successful.";showPage("home");
+  }catch(e){q("authStatus").textContent=e.message||"Login failed."}
+};
+q("saveProfile").onclick=async()=>{
+  const u=getStoredUser();if(!u){showPage("login");return}
+  const name=q("profileNameInput").value.trim(),age=q("profileAgeInput").value.trim(),gender=q("profileGenderInput").value;
+  if(!name||!age||!gender){q("profileStatus").textContent="Please fill name, age and gender.";return}
+  try{q("profileStatus").textContent="Saving to Firebase…";await updateFirebaseProfile(u.uid,u.idToken,{name,age,gender});
+    localStorage.setItem("englishTrackingUser",JSON.stringify({...u,name,age,gender}));loadUser();q("profileStatus").textContent="Profile updated successfully. ☁️";
+  }catch(e){q("profileStatus").textContent=e.message||"Firebase profile update failed."}
+};
+q("logoutBtn").onclick=()=>{localStorage.removeItem("englishTrackingUser");location.reload()};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-page]");if(b&&b.dataset.page==="profile"&&!getStoredUser()){e.preventDefault();showPage("login");q("authStatus").textContent="Please login or create an account first."}});
+authUI();loadUser();renderLessons();renderVocab();renderTests();
