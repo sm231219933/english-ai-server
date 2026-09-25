@@ -18,6 +18,9 @@
   let loadingTTS = null;
   let speaking = false;
   let listenButtonRef = null;
+  let silenceTimer = null;
+  let analyser = null;
+  let audioContext = null;
 
   function setStatus(message) {
     const el = $("grammarStatus");
@@ -155,6 +158,9 @@
         speaking = false;
         if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
         mediaStream = null;
+        if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+        analyser = null;
+        if (audioContext) { try { await audioContext.close(); } catch (_) {} audioContext = null; }
         const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
         audioChunks = [];
         try {
@@ -164,7 +170,38 @@
         }
       };
       mediaRecorder.start();
-      setStatus("🎤 Listening... Speak your complete sentence. Tap Stop & transcribe when finished.");
+      setStatus("🎤 Listening... speak your complete sentence. I will stop after a short pause.");
+      try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+        const data = new Uint8Array(analyser.fftSize);
+        let quietSince = null;
+        const monitor = () => {
+          if (!speaking || !analyser) return;
+          analyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) {
+            const x = (data[i] - 128) / 128;
+            sum += x * x;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          if (rms < 0.018) {
+            if (!quietSince) quietSince = Date.now();
+            if (Date.now() - quietSince > 1400 && Date.now() - (window.__speechStartedAt || Date.now()) > 900) {
+              stopRecording();
+              return;
+            }
+          } else {
+            quietSince = null;
+          }
+          requestAnimationFrame(monitor);
+        };
+        window.__speechStartedAt = Date.now();
+        requestAnimationFrame(monitor);
+      } catch (_) {}
     });
   }
 
