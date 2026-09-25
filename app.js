@@ -8,6 +8,38 @@ const currentSentence=()=>topic()?.sentences.filter(s=>personFilter==="All"||s.p
 function normalizeSpeechText(s){let t=s.toLowerCase().replace(/[^a-z0-9\s']/g," ").replace(/\s+/g," ").trim();return t}
 function words(s){return normalizeSpeechText(s).split(" ").filter(Boolean)}
 function similarity(a,b){const A=words(a),B=words(b),used=new Set();if(!A.length)return 0;let hits=0;A.forEach(w=>{const i=B.findIndex((x,j)=>x===w&&!used.has(j));if(i>=0){hits++;used.add(i)}});return Math.round(hits/Math.max(A.length,B.length)*100)}
+function commonGrammar(raw){
+ const text=normalizeSpeechText(raw);
+ const findings=[];
+ const add=(bad,good,reason)=>{
+   if(!bad||!good||bad.toLowerCase()===good.toLowerCase())return;
+   const re=new RegExp("\\b"+bad.replace(/[.*+?^()$|[\\]\\]/g,"\\\\function similarity(a,b){const A=words(a),B=words(b),used=new Set();if(!A.length)return 0;let hits=0;A.forEach(w=>{const i=B.findIndex((x,j)=>x===w&&!used.has(j));if(i>=0){hits++;used.add(i)}});return Math.round(hits/Math.max(A.length,B.length)*100)}
+")+"\\b","i");
+   if(re.test(text))findings.push({bad,good,reason});
+ };
+ // Subject-verb agreement for common spoken English.
+ const third=["he","she","it","this","that","someone","somebody","everyone","everybody","nobody"];
+ third.forEach(subject=>{
+   const re=new RegExp("\\b"+subject+"\\s+(go|come|eat|drink|play|work|live|like|want|need|have|do|watch|read|write|speak|study|take|make|use|know|say|tell|give|call|look|feel|get|keep|help|start|finish|try|buy|watch)\\b","i");
+   const m=text.match(re);
+   if(m){
+     const v=m[1].toLowerCase();
+     const irregular={have:"has",do:"does",go:"goes",watch:"watches",study:"studies",try:"tries",buy:"buys",say:"says"};
+     const good=irregular[v]||v+"s";
+     add(m[1],good,"Use the third-person singular verb form after he, she, or it.");
+   }
+ });
+ [["i is","i am","Use “am” with I."],["he are","he is","Use “is” with he."],["she are","she is","Use “is” with she."],["they is","they are","Use “are” with they."],["we is","we are","Use “are” with we."],["you is","you are","Use “are” with you."],["i has","i have","Use “have” with I."],["you has","you have","Use “have” with you."],["they has","they have","Use “have” with they."],["he have","he has","Use “has” with he."],["she have","she has","Use “has” with she."],["he don't","he doesn't","Use “doesn't” with he."],["she don't","she doesn't","Use “doesn't” with she."],["it don't","it doesn't","Use “doesn't” with it."]].forEach(x=>add(x[0],x[1],x[2]));
+ [["more better","better","Do not use “more” with a comparative adjective that already ends in “-er”."],["more easier","easier","Do not use “more” with “easier”."],["more faster","faster","Do not use “more” with “faster”."],["most easiest","easiest","Do not use “most” with “easiest”."],["did went","did go","After “did”, use the base verb."],["did went","did go","After “did”, use the base verb."],["did saw","did see","After “did”, use the base verb."],["did ate","did eat","After “did”, use the base verb."],["can goes","can go","After a modal such as “can”, use the base verb."],["can sings","can sing","After a modal such as “can”, use the base verb."],["will goes","will go","After “will”, use the base verb."],["will went","will go","After “will”, use the base verb."],["to goes","to go","After “to”, use the base verb."],["to went","to go","After “to”, use the base verb."],["a apple","an apple","Use “an” before a vowel sound."],["a hour","an hour","Use “an” before a vowel sound."]].forEach(x=>add(x[0],x[1],x[2]));
+ // Common everyday phrase fixes.
+ [["in the morning everyday","in the morning every day","“Every day” is written as two words when it means each day."],["everyday","every day","Use “every day” when you mean each day."],["go to school every","go to school every day","This sentence is incomplete; add a time expression such as “day” after “every”." ]].forEach(x=>add(x[0],x[1],x[2]));
+ // Remove obvious duplicate spaces only; never invent a correction for normal capitalization.
+ return findings.filter((x,i,a)=>a.findIndex(y=>y.bad.toLowerCase()===x.bad.toLowerCase()&&y.good.toLowerCase()===x.good.toLowerCase())===i);
+}
+function grammarHTML(fixes){
+ if(!fixes||!fixes.length)return "<div>✅ No common grammar mistakes were found by the local rule set.</div>";
+ return fixes.map(x=>"❌ <strong>"+x.bad+"</strong> → <strong>"+x.good+"</strong><br><small>"+x.reason+"</small>").join("<br>");
+}
 function speakText(text){if(window.speechSynthesis){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="en-US";u.rate=.9;speechSynthesis.speak(u)}}
 function renderTopicOptions(){const s=$("scenario");if(!s)return;s.innerHTML=speakingData.topics.map((t,i)=>`<option value="${i}">${t.title}</option>`).join("");s.value=String(scenario)}
 function render(){
