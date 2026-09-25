@@ -14,7 +14,7 @@ function render(){
  const t=topic(), list=t? t.sentences.filter(s=>personFilter==="All"||s.personTag===personFilter):[],s=currentSentence();
  $("topicDescription").textContent=t?.description||"";
  $("topicMeta").textContent=t?`${t.category} · ${t.level} · ${list.length} sentences`:"";
- $("promptText").textContent=s?.promptQuestion||"";
+ $("promptText").textContent=s?.expectedText||"";
  $("promptHindi").textContent=s?.promptHindi||"";
  $("expectedText").textContent=s?.expectedText||"";
  $("expectedWrap").className="expected hidden";
@@ -27,13 +27,30 @@ function render(){
 function resetTopic(){index=0;correct=0;attempted=0;render()}
 function revealExpected(){$("expectedWrap").className="expected";$("expectedText").textContent=currentSentence()?.expectedText||""}
 function startRecognition(){
- const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$("status").textContent="Speech recognition is not supported. Try Chrome or Edge.";return}
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){$("status").textContent="Speech recognition is not supported. Try Chrome or Edge.";return}
  if(recognition)try{recognition.stop()}catch(e){}
- recognition=new SR();recognition.lang="en-US";recognition.interimResults=false;recognition.maxAlternatives=1;
- recognition.onstart=()=>{$("status").textContent="🎤 Listening... speak now."};
- recognition.onerror=e=>{$("status").textContent="Could not hear you ("+e.error+"). Try again."};
- recognition.onresult=e=>evaluate(e.results[0][0].transcript);
- recognition.start();
+ recognition=new SR();
+ recognition.lang="en-US";
+ recognition.interimResults=true;
+ recognition.continuous=false;
+ recognition.maxAlternatives=3;
+ recognition.onstart=()=>{$("status").textContent="🎤 Listening... speak the English sentence now."};
+ recognition.onresult=e=>{
+   let text="";
+   for(let i=0;i<e.results.length;i++) text+=e.results[i][0].transcript+" ";
+   text=text.trim();
+   $("heard").className="heard";
+   $("heard").innerHTML="<b>You said:</b> "+text;
+   $("status").textContent="Listening... "+text;
+   const last=e.results[e.results.length-1];
+   if(last.isFinal) evaluate(text);
+ };
+ recognition.onerror=e=>{
+   $("status").textContent=e.error==="not-allowed"?"Microphone permission was blocked. Allow microphone and try again.":"Could not hear you ("+e.error+"). Try again.";
+ };
+ recognition.onend=()=>{if(!$("feedback").classList.contains("good")&&!$("feedback").classList.contains("bad")&&$("heard").textContent.trim())$("status").textContent="Speech captured. Tap Next or Speak again."};
+ try{recognition.start()}catch(e){$("status").textContent="Microphone could not start. Try again."}
 }
 function evaluate(text){
  const s=currentSentence();if(!s)return;attempted++;const score=similarity(text,s.expectedText),fixes=commonGrammar(text),fb=$("feedback");
