@@ -192,9 +192,19 @@
             shown = shown.trim();
             const liveBox = $("grammarLive");
             const liveText = $("grammarLiveText");
-            if (shown && liveBox && liveText) {
-              liveBox.className = "heard";
-              liveText.textContent = shown;
+            const heardBox = $("grammarHeard");
+            if (shown) {
+              if (liveBox && liveText) {
+                liveBox.className = "heard";
+                liveText.textContent = shown;
+              }
+              // Also show the live transcript in the main correction result area.
+              // This makes the spoken sentence visible while recording, just like
+              // the Speaking Practice screen.
+              if (heardBox) {
+                heardBox.className = "heard";
+                heardBox.innerHTML = "<b>You said:</b> " + shown.replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
+              }
             }
           };
           live.onerror = () => {};
