@@ -69,11 +69,28 @@ function startRecognition(){
  try{recognition.start()}catch(e){$("status").textContent="Microphone could not start. Try again."}
 }
 function evaluate(text){
- const s=currentSentence();if(!s)return;attempted++;const score=similarity(text,s.expectedText),fixes=commonGrammar(text),fb=$("feedback");
- $("heard").className="heard";$("heard").innerHTML="<b>You said:</b> "+text;
+ const s=currentSentence();if(!s)return;
+ attempted++;
+ const score=similarity(text,s.expectedText),fixes=commonGrammar(text),fb=$("feedback");
+ const expectedWords=words(s.expectedText),spokenWords=words(text);
+ const missing=expectedWords.filter(w=>!spokenWords.includes(w));
+ const extra=spokenWords.filter(w=>!expectedWords.includes(w));
+ $("heard").className="heard";
+ $("heard").innerHTML="<b>You said:</b> "+text;
  fb.className="feedback "+(score>=80?"good":"bad");
- if(score>=80){correct++;fb.innerHTML="🌟 <b>Excellent!</b> "+score+"% match.<br><br>"+grammarHTML(fixes);$("status").textContent="Correct! Tap Next to continue."}
- else fb.innerHTML="❌ <b>"+score+"% match.</b><br><b>Expected:</b> "+s.expectedText+"<br><br>"+grammarHTML(fixes);
+ let details="<div class='speech-score'>🎯 <b>Speech accuracy: "+score+"%</b></div>"+
+   "<div><b>Expected:</b> "+s.expectedText+"</div>";
+ if(missing.length) details+="<div>❌ Missing: "+missing.join(", ")+"</div>";
+ if(extra.length) details+="<div>⚠️ Extra/different: "+extra.join(", ")+"</div>";
+ details+="<br>"+grammarHTML(fixes);
+ if(score>=80){
+   correct++;
+   fb.innerHTML="🌟 <b>Excellent!</b><br>"+details;
+   $("status").textContent="Speech checked: "+score+"% accurate. Tap Next to continue.";
+ }else{
+   fb.innerHTML="❌ <b>Speech accuracy: "+score+"%</b><br>"+details;
+   $("status").textContent="Speech checked: "+score+"%. Try again or tap Next.";
+ }
  $("score").textContent=correct+"/"+attempted;
 }
 function nextSentence(){
