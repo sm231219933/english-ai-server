@@ -71,27 +71,31 @@ function startRecognition(){
 function evaluate(text){
  const s=currentSentence();if(!s)return;
  attempted++;
- const score=similarity(text,s.expectedText),fixes=commonGrammar(text),fb=$("feedback");
- const expectedWords=words(s.expectedText),spokenWords=words(text);
+ const spoken=String(text||"").trim();
+ const score=similarity(spoken,s.expectedText),fixes=commonGrammar(spoken),fb=$("feedback"),heard=$("heard");
+ const expectedWords=words(s.expectedText),spokenWords=words(spoken);
  const missing=expectedWords.filter(w=>!spokenWords.includes(w));
  const extra=spokenWords.filter(w=>!expectedWords.includes(w));
- $("heard").className="heard";
- $("heard").innerHTML="<b>You said:</b> "+text;
+ if(heard){
+   heard.className="heard";
+   heard.innerHTML="🔊 <b>You said:</b> "+spoken+"<br><small>Click here to hear what you said.</small>";
+   heard.style.cursor="pointer";
+   heard.onclick=()=>speakText(spoken);
+ }
  fb.className="feedback "+(score>=80?"good":"bad");
  let details="<div class='speech-score'>🎯 <b>Speech accuracy: "+score+"%</b></div>"+
-   "<div><b>Expected:</b> "+s.expectedText+"</div>";
+   "<div><b>Target sentence:</b> "+s.expectedText+"</div>";
  if(missing.length) details+="<div>❌ Missing: "+missing.join(", ")+"</div>";
  if(extra.length) details+="<div>⚠️ Extra/different: "+extra.join(", ")+"</div>";
  details+="<br>"+grammarHTML(fixes);
  if(score>=80){
    correct++;
    fb.innerHTML="🌟 <b>Excellent!</b><br>"+details;
-   $("status").textContent="Speech checked: "+score+"% accurate. Tap Next to continue.";
+   $("status").textContent="Speech checked: "+score+"% accurate. Your speech was compared with the target sentence.";
  }else{
    fb.innerHTML="❌ <b>Speech accuracy: "+score+"%</b><br>"+details;
-   $("status").textContent="Speech checked: "+score+"%. Try again or tap Next.";
+   $("status").textContent="Speech checked: "+score+"%. Try again and compare your words with the target.";
  }
- $("score").textContent=correct+"/"+attempted;
 }
 function nextSentence(){
  const list=topic().sentences.filter(s=>personFilter==="All"||s.personTag===personFilter);
