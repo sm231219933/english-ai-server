@@ -26,14 +26,19 @@ q("audioReport").onclick=q("audioReport2").onclick=q("videoReport").onclick=()=>
 
 let register=false;
 function getStoredUser(){try{return JSON.parse(localStorage.getItem("englishTrackingUser")||"null")}catch(e){return null}}
+function authEl(id){return document.getElementById(id)}
+function authText(id,value){const el=authEl(id);if(el)el.textContent=value}
+function authValue(id){const el=authEl(id);return el?el.value:""}
 function authUI(){
-  document.querySelector(".authCard").classList.toggle("registerMode",register);
-  q("authTitle").textContent=register?"Create your account":"Welcome back";
-  q("authSubtitle").textContent=register?"Start tracking your English progress.":"Login to continue.";
-  q("authAction").textContent=register?"Create Account":"Login";
-  q("authToggle").textContent=register?"Already have an account? Login":"Create an account";
+  const card=document.querySelector(".authCard");
+  if(card)card.classList.toggle("registerMode",register);
+  authText("authTitle",register?"Create your account":"Welcome back");
+  authText("authSubtitle",register?"Start tracking your English progress.":"Login to continue.");
+  authText("authAction",register?"Create Account":"Login");
+  authText("authToggle",register?"Already have an account? Login":"Create an account");
 }
-q("authToggle").onclick=()=>{register=!register;authUI()};
+const authToggle=authEl("authToggle");
+if(authToggle)authToggle.onclick=()=>{register=!register;authUI()};
 const APIKEY="AIzaSyD1suufM1hw2jqVzjx_DyVktpiAwZ7xcEQ",FIREBASE_PROJECT="englishtrackingai";
 async function authCall(path,body){
   const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:"+path+"?key="+APIKEY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
@@ -68,14 +73,16 @@ function loadUser(){
   q("profileInitial").textContent=name[0].toUpperCase();q("profileNameInput").value=name;q("profileAgeInput").value=u.age||"";q("profileGenderInput").value=u.gender||"";
   q("topLogin").hidden=true;q("topProfile").hidden=false;q("topLevel").textContent="Level: "+(u.level||"Beginner");q("homeLevel").textContent=u.level||"Beginner";
 }
-q("authAction").onclick=async()=>{
+const authAction=authEl("authAction");
+if(authAction)authAction.onclick=async()=>{
   try{
-    q("authStatus").textContent="Checking Firebase…";const email=q("authEmail").value.trim(),password=q("authPassword").value;
+    authText("authStatus","Checking Firebase…");
+    const email=authValue("authEmail").trim(),password=authValue("authPassword");
     if(!email||!password)throw Error("Enter email and password.");if(password.length<6)throw Error("Password must be at least 6 characters.");
     if(register){
-      const name=q("authName").value.trim(),age=q("authAge").value.trim(),gender=q("authGender").value;
+      const name=authValue("authName").trim(),age=authValue("authAge").trim(),gender=authValue("authGender");
       if(!name)throw Error("Enter your full name.");if(!age||Number(age)<13)throw Error("Enter a valid age (13+).");if(!gender)throw Error("Select your gender.");
-      if(!q("authTerms").checked)throw Error("Please accept Terms of Service.");
+      const terms=authEl("authTerms");if(terms&&!terms.checked)throw Error("Please accept Terms of Service.");
       const d=await authCall("signUp",{email,password,returnSecureToken:true});
       const profile={uid:d.localId,name,email:d.email||email,age,gender,level:"Beginner",isPaid:false,plan:"Free",messageCount:0};
       try{await createFirebaseProfile(d.localId,d.idToken,profile)}catch(profileError){try{await authCall("delete",{idToken:d.idToken})}catch(e){}throw profileError}
@@ -85,8 +92,8 @@ q("authAction").onclick=async()=>{
       if(!profile)throw Error("Firebase account found, but your Android profile is missing.");
       localStorage.setItem("englishTrackingUser",JSON.stringify({...profile,idToken:d.idToken,email:d.email||email}));
     }
-    loadUser();q("authStatus").textContent="Firebase authentication successful.";showPage("home");
-  }catch(e){q("authStatus").textContent=e.message||"Login failed."}
+    loadUser();authText("authStatus","Firebase authentication successful.");showPage("home");
+  }catch(e){authText("authStatus",e.message||"Login failed.")}
 };
 q("saveProfile").onclick=async()=>{
   const u=getStoredUser();if(!u){showPage("login");return}
@@ -97,5 +104,5 @@ q("saveProfile").onclick=async()=>{
   }catch(e){q("profileStatus").textContent=e.message||"Firebase profile update failed."}
 };
 q("logoutBtn").onclick=()=>{localStorage.removeItem("englishTrackingUser");location.reload()};
-document.addEventListener("click",e=>{const b=e.target.closest("[data-page]");if(b&&b.dataset.page==="profile"&&!getStoredUser()){e.preventDefault();showPage("login");q("authStatus").textContent="Please login or create an account first."}});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-page]");if(b&&b.dataset.page==="profile"&&!getStoredUser()){e.preventDefault();showPage("login");authText("authStatus","Please login or create an account first.")}});
 authUI();loadUser();renderLessons();renderVocab();renderTests();
