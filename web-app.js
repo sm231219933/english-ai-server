@@ -12,6 +12,9 @@ function connectedCall(){if(callState.started)return;callState.started=Date.now(
 function refreshBuddyLimit(){return true}function finishCall(reason){const mode=callState.mode;resetCall();if(mode&&mode!=="text")localStorage.setItem("usage_"+mode,String(Number(localStorage.getItem("usage_"+mode)||0)+1));showPage("buddy");refreshBuddyLimit();q("buddyStatus").textContent=reason}
 function safe(s){return String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))}
 updateBuddyMode();q("startBuddy").onclick=connectBuddy;
+q("btnTelegram").onclick=()=>{window.open("https://t.me/Tinklapp","_blank","noopener,noreferrer")};
+q("btnFeedback").onclick=()=>{window.location.href="mailto:smnmapps@gmail.com?subject="+encodeURIComponent("Tinkl App Feedback")};
+q("btnShareApp").onclick=async()=>{const shareUrl="https://play.google.com/store/apps/details?id=com.smnm.englishtrackingai";const shareData={title:"Tinkl - Learn With Buddy",text:"Join me on Tinkl to practice English with buddies!",url:shareUrl};try{if(navigator.share)await navigator.share(shareData);else if(navigator.clipboard){await navigator.clipboard.writeText(shareUrl);alert("App link copied!");}else{window.prompt("Copy this app link:",shareUrl)}}catch(e){if(e?.name!=="AbortError")window.prompt("Copy this app link:",shareUrl)}};
 function sendLiveChat(){const i=q("chatInput"),v=i.value.trim();if(!v)return;if(!callState.socket||!callState.matched){q("chatMessages").insertAdjacentHTML("beforeend",'<div class="bubble bot">Still searching for a partner…</div>');return}q("chatMessages").insertAdjacentHTML("beforeend",'<div class="bubble user">'+safe(v)+'</div>');callState.socket.emit("send_chat",{message:v});i.value=""}
 q("chatSend").onclick=sendLiveChat;q("chatInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendLiveChat()});
 q("audioHangup").onclick=()=>finishCall("Call ended");q("videoHangup").onclick=()=>finishCall("Call ended");
