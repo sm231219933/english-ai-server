@@ -38,13 +38,17 @@ function startRecognition(){
  recognition.onstart=()=>{$("status").textContent="🎤 Listening... speak the English sentence now."};
  recognition.onresult=e=>{
    let text="";
-   for(let i=0;i<e.results.length;i++) text+=e.results[i][0].transcript+" ";
+   for(let i=0;i<e.results.length;i++){
+     if(e.results[i] && e.results[i][0]) text+=e.results[i][0].transcript+" ";
+   }
    text=text.trim();
-   $("heard").className="heard";
-   $("heard").innerHTML="<b>You said:</b> "+text;
-   $("status").textContent="Listening... "+text;
+   if(text){
+     $("heard").className="heard";
+     $("heard").innerHTML="<b>You said:</b> "+text;
+     $("status").textContent="You said: "+text;
+   }
    const last=e.results[e.results.length-1];
-   if(last.isFinal) evaluate(text);
+   if(last && last.isFinal && text) evaluate(text);
  };
  recognition.onerror=e=>{
    $("status").textContent=e.error==="not-allowed"?"Microphone permission was blocked. Allow microphone and try again.":"Could not hear you ("+e.error+"). Try again.";
