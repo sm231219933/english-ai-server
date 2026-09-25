@@ -13,8 +13,7 @@ function commonGrammar(raw){
  const findings=[];
  const add=(bad,good,reason)=>{
    if(!bad||!good||bad.toLowerCase()===good.toLowerCase())return;
-   const re=new RegExp("\\b"+bad.replace(/[.*+?^()$|[\\]\\]/g,"\\\\function similarity(a,b){const A=words(a),B=words(b),used=new Set();if(!A.length)return 0;let hits=0;A.forEach(w=>{const i=B.findIndex((x,j)=>x===w&&!used.has(j));if(i>=0){hits++;used.add(i)}});return Math.round(hits/Math.max(A.length,B.length)*100)}
-")+"\\b","i");
+   const re=new RegExp("\\b"+bad.replace(/[.*+?^()$|[\\]\\]/g,"\\$&")+"\\b","i");
    if(re.test(text))findings.push({bad,good,reason});
  };
  // Subject-verb agreement for common spoken English.
