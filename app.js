@@ -14,9 +14,9 @@ function render(){
  const t=topic(), list=t? t.sentences.filter(s=>personFilter==="All"||s.personTag===personFilter):[],s=currentSentence();
  $("topicDescription").textContent=t?.description||"";
  $("topicMeta").textContent=t?`${t.category} · ${t.level} · ${list.length} sentences`:"";
- $("promptText").textContent=s?.expectedText||"";
+ $("promptText").textContent=s?"💡 Hint: "+makeSentenceHint(s.expectedText):"";
  $("promptHindi").textContent=s?.promptHindi||"";
- $("expectedText").textContent=s?.expectedText||"";
+ $("expectedText").textContent=s?makeSentenceHint(s.expectedText):"";
  $("expectedWrap").className="expected hidden";
  $("personFilter").value=personFilter;
  $("sentenceNo").textContent=list.length?`Sentence ${index+1} of ${list.length}`:"";
@@ -25,7 +25,19 @@ function render(){
  $("heard").className="heard hidden";$("feedback").className="feedback hidden";$("status").textContent="Ready. Listen to the English answer twice, then speak.";
 }
 function resetTopic(){index=0;correct=0;attempted=0;render()}
-function revealExpected(){$("expectedWrap").className="expected";$("expectedText").textContent=currentSentence()?.expectedText||""}
+function makeSentenceHint(text){
+  const keep=new Set(["i","a","an","the","to","of","in","on","at","for","with","and","or","but","if","when","while","before","after","because","as","soon","than","that","is","am","are","was","were","be","been","have","has","had","will","would","can","could","should","must","may","might","do","does","did","not","no","very","more","most","up","down"]);
+  const parts=String(text||"").split(/(\s+)/);
+  let wordNo=0;
+  return parts.map(part=>{
+    if(/^\s+$/.test(part)||!part)return part;
+    const clean=part.toLowerCase().replace(/[^a-z']/g,"");
+    const keepWord=wordNo<2||keep.has(clean)||clean.length<=2;
+    wordNo++;
+    return keepWord?part:"___";
+  }).join("");
+}
+function revealExpected(){$("expectedWrap").className="expected";$("expectedText").textContent=makeSentenceHint(currentSentence()?.expectedText||"")}
 function startRecognition(){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){$("status").textContent="Speech recognition is not supported. Try Chrome or Edge.";return}
