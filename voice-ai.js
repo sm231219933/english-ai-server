@@ -21,6 +21,7 @@
   let silenceTimer = null;
   let analyser = null;
   let audioContext = null;
+  let liveRecognition = null;
 
   function setStatus(message) {
     const el = $("grammarStatus");
@@ -156,6 +157,8 @@
       };
       mediaRecorder.onstop = async () => {
         speaking = false;
+        try { if (liveRecognition) liveRecognition.stop(); } catch (_) {}
+        liveRecognition = null;
         if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
         mediaStream = null;
         if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
@@ -170,6 +173,40 @@
         }
       };
       mediaRecorder.start();
+
+      // Show live speech text while Whisper records the audio.
+      // Whisper remains the final transcript used for correction.
+      try {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const live = SR ? new SR() : null;
+        if (live) {
+          liveRecognition = live;
+          live.lang = "en-US";
+          live.interimResults = true;
+          live.continuous = true;
+          live.onresult = e => {
+            let shown = "";
+            for (let i = 0; i < e.results.length; i++) {
+              if (e.results[i]?.[0]) shown += e.results[i][0].transcript + " ";
+            }
+            shown = shown.trim();
+            const liveBox = $("grammarLive");
+            const liveText = $("grammarLiveText");
+            if (shown && liveBox && liveText) {
+              liveBox.className = "heard";
+              liveText.textContent = shown;
+            }
+          };
+          live.onerror = () => {};
+          live.onend = () => {
+            if (speaking) {
+              try { live.start(); } catch (_) {}
+            }
+          };
+          live.start();
+        }
+      } catch (_) {}
+
       setStatus("🎤 Listening... speak your complete sentence. I will stop after a short pause.");
       try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -279,6 +316,12 @@
 
       window.grammarPendingText = text;
       window.grammarLastCorrection = text;
+      const liveBox = $("grammarLive");
+      const liveText = $("grammarLiveText");
+      if (liveBox && liveText) {
+        liveBox.className = "heard";
+        liveText.textContent = text;
+      }
       const heard = $("grammarHeard");
       if (heard) {
         heard.className = "heard";
