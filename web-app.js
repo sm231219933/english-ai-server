@@ -90,11 +90,11 @@ function loadUser(){
   if(!u){
     q("homeGreeting").textContent="Hello! 👋";q("profileName").textContent="Learner";q("profileEmail").textContent="Guest mode";q("profileInitial").textContent="L";
     q("profileNameInput").value="";q("profileAgeInput").value="";q("profileGenderInput").value="";q("topLogin").hidden=false;q("topProfile").hidden=true;
-    q("topLevel").textContent="Level: Beginner";q("homeLevel").textContent="Beginner";return;
+    q("topLevel").textContent="Level: Beginner";authText("homeLevel","Beginner");return;
   }
   const name=u.name||"Learner";q("homeGreeting").textContent="Hello "+name+" 👋";q("profileName").textContent=name;q("profileEmail").textContent=u.email||"";
   q("profileInitial").textContent=name[0].toUpperCase();q("profileNameInput").value=name;q("profileAgeInput").value=u.age||"";q("profileGenderInput").value=u.gender||"";
-  q("topLogin").hidden=true;q("topProfile").hidden=false;q("topLevel").textContent="Level: "+(u.level||"Beginner");q("homeLevel").textContent=u.level||"Beginner";
+  q("topLogin").hidden=true;q("topProfile").hidden=false;q("topLevel").textContent="Level: "+(u.level||"Beginner");authText("homeLevel",u.level||"Beginner");
 }
 const authAction=authEl("authAction");
 if(authAction)authAction.onclick=async()=>{
