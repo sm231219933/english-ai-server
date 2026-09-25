@@ -370,7 +370,7 @@ async function showGrammarToolResult(raw){
   if(lt.available){
     const checked=lingoResult(raw.trim(),lt.matches);
     findings=checked.findings;
-    if(!localFixes.length) corrected=checked.corrected;
+    corrected=checked.corrected;
     engineLabel="LingoTweaker (LanguageTool-derived) + systematic grammar engine";
   }
 
@@ -396,9 +396,13 @@ async function showGrammarToolResult(raw){
 
   if(findings.length){
     box.className="feedback bad";
-    box.innerHTML="<div class='grammar-title'>❌ Mistake found</div><div class='correction'><b>Better sentence:</b> "+corrected+"</div>"+
-      findings.map(x=>"<div>❌ <strong>"+x.wrong+"</strong> → <strong>"+(x.good||"remove")+"</strong><br><small>"+x.message+"</small></div>").join("<br>")+
-      "<div class='explanation'>Checked on your device using "+engineLabel+". Your sentence is not sent to a grammar server.</div>";
+    const safeRaw=String(raw||"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]));
+    const safeCorrected=String(corrected||"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]));
+    box.innerHTML="<div class='grammar-title'>❌ Mistake found</div>"+
+      "<div><b>You said:</b> "+safeRaw+"</div>"+
+      "<div class='correction'><b>✅ Corrected sentence:</b> "+safeCorrected+"</div>"+
+      findings.map(x=>"<div>❌ <strong>"+String(x.wrong||"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))+"</strong> → <strong>"+String(x.good||"remove").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))+"</strong><br><small>"+String(x.message||"Grammar issue detected.").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))+"</small></div>").join("<br>")+
+      "<div class='explanation'>Checked free on your device using "+engineLabel+". Your speech/text is not sent to a grammar server.</div>";
     $("grammarStatus").textContent="Grammar feedback found.";
   }else{
     box.className="feedback good";
