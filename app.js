@@ -81,7 +81,7 @@ function render(){
  $("promptText").textContent=s?.promptLocal||"";
  $("promptHindi").textContent="";
  $("expectedText").textContent="";
- const expectedLabel=document.querySelector("#expectedWrap b");if(expectedLabel)expectedLabel.textContent=practiceLanguage==="en"?"💡 Expected English:":"💡 Sentence:";
+ const expectedLabel=document.querySelector("#expectedWrap b");if(expectedLabel)expectedLabel.textContent="💡 English Hint:";
  $("expectedWrap").className="expected hidden";
  $("personFilter").value=personFilter;
  $("sentenceNo").textContent=list.length?`Sentence ${index+1} of ${list.length}`:"";
@@ -138,8 +138,8 @@ async function evaluate(text){
  const target=await getEnglishTarget(s); if(!target){$("status").textContent="English translation could not be loaded. Please try again.";return}
  attempted++;
  const spoken=String(text||"").trim();
- const score=similarity(spoken,s.expectedText),fixes=commonGrammar(spoken),fb=$("feedback"),heard=$("heard");
- const expectedWords=words(s.expectedText),spokenWords=words(spoken);
+ const score=similarity(spoken,target),fixes=commonGrammar(spoken),fb=$("feedback"),heard=$("heard");
+ const expectedWords=words(target),spokenWords=words(spoken);
  const missing=expectedWords.filter(w=>!spokenWords.includes(w));
  const extra=spokenWords.filter(w=>!expectedWords.includes(w));
  if(heard){
@@ -150,7 +150,7 @@ async function evaluate(text){
  }
  fb.className="feedback "+(score>=80?"good":"bad");
  let details="<div class='speech-score'>🎯 <b>Speech accuracy: "+score+"%</b></div>"+
-   "<div><b>Target sentence:</b> "+s.expectedText+"</div>";
+   "<div><b>Target sentence:</b> "+target+"</div>";
  if(missing.length) details+="<div>❌ Missing: "+missing.join(", ")+"</div>";
  if(extra.length) details+="<div>⚠️ Extra/different: "+extra.join(", ")+"</div>";
  details+="<br>"+grammarHTML(fixes);
