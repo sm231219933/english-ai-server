@@ -41,8 +41,22 @@ function grammarHTML(fixes){
  if(!fixes||!fixes.length)return "<div>✅ No common grammar mistakes were found by the local rule set.</div>";
  return fixes.map(x=>"❌ <strong>"+x.bad+"</strong> → <strong>"+x.good+"</strong><br><small>"+x.reason+"</small>").join("<br>");
 }
-function speakText(text){if(window.speechSynthesis){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="en-US";u.rate=.9;speechSynthesis.speak(u)}}
-function renderTopicOptions(){const s=$("scenario");if(!s)return;s.innerHTML=speakingData.topics.map((t,i)=>`<option value="${i}">${t.title}</option>`).join("");s.value=String(scenario)}
+function speakText(text){if(window.speechSynthesis){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=practiceLanguages[practiceLanguage]?.locale||"en-US";u.rate=.9;speechSynthesis.speak(u)}}
+function renderLanguageOptions(){
+ const el=$("practiceLanguage"); if(!el)return;
+ el.innerHTML=Object.entries(practiceLanguages).map(([id,l])=>`<option value="${id}">${l.nativeName} (${l.name})</option>`).join("");
+ el.value=practiceLanguage;
+}
+function applyPracticeLanguage(id){
+ if(!practiceLanguages[id])id="en";
+ practiceLanguage=id;
+ activePracticeTopics=practiceLanguages[id].topics||speakingData.topics;
+ scenario=0; index=0; correct=0; attempted=0; personFilter="All";
+ const el=$("practiceLanguage"); if(el)el.value=id;
+ renderTopicOptions();
+ render();
+}
+function renderTopicOptions(){const s=$("scenario");if(!s)return;s.innerHTML=activePracticeTopics.map((t,i)=>`<option value="${i}">${t.title}</option>`).join("");s.value=String(scenario)}
 function render(){
  const t=topic(), list=t? t.sentences.filter(s=>personFilter==="All"||s.personTag===personFilter):[],s=currentSentence();
  $("topicDescription").textContent=t?.description||"";
