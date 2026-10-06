@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const __wbg_ltengine_free: (a: number, b: number) => void;
+export const detect_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
 export const ltengine_active_rule_count: (a: number) => number;
 export const ltengine_check_json: (a: number, b: number, c: number) => [number, number, number, number];
 export const ltengine_check_matches_json: (a: number, b: number, c: number) => [number, number, number, number];

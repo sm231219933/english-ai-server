@@ -187,6 +187,50 @@ export class LtEngine {
 }
 if (Symbol.dispose) LtEngine.prototype[Symbol.dispose] = LtEngine.prototype.free;
 
+/**
+ * Detect the language of `text` and return the decision as JSON:
+ * `{"resolved":"sv","detected":{…},"candidates":[…]}`.
+ *
+ * `gates` is an optional JSON object overriding the thresholds
+ * (`{"minChars":20,"minConfidence":0.6,"minMargin":1.5}`); absent means
+ * [`Gates::default()`].
+ *
+ * `resolved` is `null` when the gates abstain — the text is too short, too
+ * ambiguous, or carries no marker. That is a normal outcome, not an error: the
+ * caller keeps whatever language it was already using.
+ *
+ * ```js
+ * import init, { detect_json } from "./pkg/lt_wasm.js";
+ * await init();
+ * JSON.parse(detect_json("Jag kommer hem efter jobbet.")).resolved; // "sv"
+ * ```
+ * @param {string} text
+ * @param {string | null} [gates]
+ * @returns {string}
+ */
+export function detect_json(text, gates) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        var ptr1 = isLikeNone(gates) ? 0 : passStringToWasm0(gates, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        const ret = wasm.detect_json(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
 export function start() {
     wasm.start();
 }

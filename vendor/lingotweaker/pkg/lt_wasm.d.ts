@@ -55,6 +55,26 @@ export class LtEngine {
     variant(): string | undefined;
 }
 
+/**
+ * Detect the language of `text` and return the decision as JSON:
+ * `{"resolved":"sv","detected":{…},"candidates":[…]}`.
+ *
+ * `gates` is an optional JSON object overriding the thresholds
+ * (`{"minChars":20,"minConfidence":0.6,"minMargin":1.5}`); absent means
+ * [`Gates::default()`].
+ *
+ * `resolved` is `null` when the gates abstain — the text is too short, too
+ * ambiguous, or carries no marker. That is a normal outcome, not an error: the
+ * caller keeps whatever language it was already using.
+ *
+ * ```js
+ * import init, { detect_json } from "./pkg/lt_wasm.js";
+ * await init();
+ * JSON.parse(detect_json("Jag kommer hem efter jobbet.")).resolved; // "sv"
+ * ```
+ */
+export function detect_json(text: string, gates?: string | null): string;
+
 export function start(): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -62,6 +82,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_ltengine_free: (a: number, b: number) => void;
+    readonly detect_json: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly ltengine_active_rule_count: (a: number) => number;
     readonly ltengine_check_json: (a: number, b: number, c: number) => [number, number, number, number];
     readonly ltengine_check_matches_json: (a: number, b: number, c: number) => [number, number, number, number];
